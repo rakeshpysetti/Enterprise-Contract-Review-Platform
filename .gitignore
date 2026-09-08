@@ -1,0 +1,33 @@
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+
+# Local tools and logs
+.idea/
+.vscode/
+*.log
+.DS_Store
+Thumbs.db
+
+# Local contract data
+data/sample_contracts/*
+!data/sample_contracts/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
