@@ -1,3 +1,81 @@
 # Enterprise Contract Review & Obligation Extraction Platform
 
-A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. This repository contains only the initial project structure, with placeholders for future API, database, AI/RAG, and PDF processing components.
+A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. The current foundation provides a FastAPI application, a health endpoint, environment-based settings, tests, and local development containers. Contract processing, database access, and AI/RAG components remain placeholders.
+
+## Local setup
+
+Requires Python 3.11 or newer (Docker uses Python 3.12). Run commands from the repository root.
+
+```sh
+python -m venv .venv
+# Linux/macOS:
+source .venv/bin/activate
+# Windows PowerShell instead:
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+```
+
+Copy `.env.example` to `.env` (`cp .env.example .env` on Linux/macOS or `Copy-Item .env.example .env` in PowerShell). All example values are intentionally blank. The API can start without external services or a database URL.
+
+```sh
+python -m uvicorn app.main:app --app-dir backend --reload
+```
+
+Open <http://localhost:8000/health> for `{"status":"ok"}` or <http://localhost:8000/docs> for interactive API documentation. `/health` checks process liveness only; it does not verify PostgreSQL or Ollama availability. Stop the server with Ctrl+C.
+
+## Configuration
+
+Environment variables override the repository-root `.env` file. Blank values use defaults; unknown keys are ignored so Compose settings can share the same file.
+
+| Variable | Default / purpose |
+| --- | --- |
+| `APP_NAME` | Project name displayed in API documentation |
+| `APP_ENV` | `development`; also accepts `test` and `production` |
+| `DATABASE_URL` | Optional, reserved for future database integration |
+| `OLLAMA_BASE_URL` | `http://localhost:11434`; Compose overrides it to `http://ollama:11434` |
+| `OLLAMA_MODEL`, `EMBEDDING_MODEL` | Optional model names; no models are loaded yet |
+| `UPLOAD_DIR` | `data/sample_contracts` |
+| `PROCESSED_DIR` | `data/processed` |
+| `POSTGRES_DB`, `POSTGRES_USER` | Compose defaults to `contracts` |
+| `POSTGRES_PASSWORD` | Required for Compose; choose a local password in `.env` |
+
+Keep `.env` out of Git. No database credentials are required for the standalone API. A future database connection running inside Compose must use hostname `postgres`; one running on the host must use `localhost`.
+
+## Tests
+
+```sh
+python -m pytest
+```
+
+Tests cover the health response, OpenAPI registration, environment precedence, blank settings, validation, and secret redaction. They do not require PostgreSQL, Ollama, or model downloads. Other test files remain empty placeholders.
+
+## Docker development
+
+Requires Docker Engine or Docker Desktop with Compose v2. Create `.env` and set `POSTGRES_PASSWORD` before running:
+
+```sh
+docker compose config --quiet
+docker compose up --build -d
+docker compose logs -f api
+docker compose down
+```
+
+FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. API startup waits for PostgreSQL health and for the Ollama container to start. PostgreSQL and Ollama use named volumes; `docker compose down` preserves them. Models are not downloaded automatically. The API does not yet connect to either service.
+
+The Dockerfile runs the API as a non-root user and includes a health check. `docker-compose.prod.yml` and GitHub workflows remain placeholders; this Compose configuration is for local development.
+
+## Make commands
+
+With GNU Make installed and the virtual environment activated:
+
+| Command | Action |
+| --- | --- |
+| `make install` | Install the project and test dependencies |
+| `make run` | Start the local API with reload |
+| `make test` | Run pytest |
+| `make docker-config` | Validate Compose configuration |
+| `make docker-up` | Build and start development services |
+| `make docker-down` | Stop services while preserving volumes |
+| `make docker-logs` | Follow service logs |
+
+On Windows without Make, use the equivalent Python and Docker commands above. Override the interpreter with `make test PYTHON=python3` when needed.
