@@ -5,7 +5,7 @@ from app.main import create_app
 
 
 def test_health_without_external_services():
-    settings = Settings(_env_file=None, app_env="test", database_url=None)
+    settings = Settings(_env_file=None, app_env="test")
     with TestClient(create_app(settings)) as client:
         response = client.get("/health")
     assert response.status_code == 200

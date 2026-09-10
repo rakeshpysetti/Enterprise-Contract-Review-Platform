@@ -6,6 +6,7 @@ services:
       - "127.0.0.1:8000:8000"
     environment:
       APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contracts}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-contracts}
       OLLAMA_BASE_URL: http://ollama:11434
     volumes:
       - ./backend:/app/backend:ro

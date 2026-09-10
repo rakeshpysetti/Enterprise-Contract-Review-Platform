@@ -20,7 +20,9 @@ class Settings(BaseSettings):
         min_length=1,
     )
     app_env: Literal["development", "test", "production"] = "development"
-    database_url: SecretStr | None = None
+    database_url: SecretStr = SecretStr(
+        "postgresql+psycopg://contracts:contracts@localhost:5432/contracts"
+    )
     ollama_base_url: HttpUrl = "http://localhost:11434"
     ollama_model: str | None = None
     embedding_model: str | None = None

@@ -31,7 +31,7 @@ Environment variables override the repository-root `.env` file. Blank values use
 | --- | --- |
 | `APP_NAME` | Project name displayed in API documentation |
 | `APP_ENV` | `development`; also accepts `test` and `production` |
-| `DATABASE_URL` | Optional, reserved for future database integration |
+| `DATABASE_URL` | SQLAlchemy PostgreSQL URL; defaults to the local Compose-compatible database |
 | `OLLAMA_BASE_URL` | `http://localhost:11434`; Compose overrides it to `http://ollama:11434` |
 | `OLLAMA_MODEL`, `EMBEDDING_MODEL` | Optional model names; no models are loaded yet |
 | `UPLOAD_DIR` | `data/sample_contracts` |
@@ -39,7 +39,7 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `POSTGRES_DB`, `POSTGRES_USER` | Compose defaults to `contracts` |
 | `POSTGRES_PASSWORD` | Required for Compose; choose a local password in `.env` |
 
-Keep `.env` out of Git. No database credentials are required for the standalone API. A future database connection running inside Compose must use hostname `postgres`; one running on the host must use `localhost`.
+Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
 
 ## Tests
 
@@ -47,7 +47,7 @@ Keep `.env` out of Git. No database credentials are required for the standalone 
 python -m pytest
 ```
 
-Tests cover the health response, OpenAPI registration, environment precedence, blank settings, validation, and secret redaction. They do not require PostgreSQL, Ollama, or model downloads. Other test files remain empty placeholders.
+Tests cover the health response, OpenAPI registration, environment settings, SQLAlchemy models and relationships, repository queries, cascade deletion, schema validation, and secret redaction. Database tests use isolated in-memory SQLite and do not require PostgreSQL, Ollama, or model downloads. Other test files remain empty placeholders.
 
 ## Docker development
 
