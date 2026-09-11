@@ -28,3 +28,4 @@ class Settings(BaseSettings):
     embedding_model: str | None = None
     upload_dir: Path = Path("data/sample_contracts")
     processed_dir: Path = Path("data/processed")
+    max_pdf_size_bytes: int = Field(default=25 * 1024 * 1024, gt=0)

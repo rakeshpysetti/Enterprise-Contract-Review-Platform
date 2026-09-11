@@ -49,6 +49,15 @@ class ContractRepository(Repository[Contract]):
         )
         return self.session.scalar(statement)
 
+    def list(self, *, offset: int = 0, limit: int = 100) -> list[Contract]:
+        statement = (
+            select(Contract)
+            .order_by(Contract.created_at.desc(), Contract.id)
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(self.session.scalars(statement))
+
 
 class ContractChunkRepository(Repository[ContractChunk]):
     model = ContractChunk

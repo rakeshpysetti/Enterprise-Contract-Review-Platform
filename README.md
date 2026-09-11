@@ -23,6 +23,18 @@ python -m uvicorn app.main:app --app-dir backend --reload
 
 Open <http://localhost:8000/health> for `{"status":"ok"}` or <http://localhost:8000/docs> for interactive API documentation. `/health` checks process liveness only; it does not verify PostgreSQL or Ollama availability. Stop the server with Ctrl+C.
 
+Upload a PDF as multipart form data; `title` is optional and defaults to the filename:
+
+```sh
+curl -X POST http://localhost:8000/contracts \
+  -F "file=@contract.pdf;type=application/pdf" \
+  -F "title=Master Services Agreement"
+curl http://localhost:8000/contracts
+curl http://localhost:8000/contracts/CONTRACT_ID
+```
+
+Uploads are validated by extension, media type, PDF signature, and PyMuPDF parsing. Text is cleaned and stored as one chunk per non-empty page with its original page number. Password-protected, damaged, empty, textless, and oversized PDFs are rejected. Uploaded binaries are not retained.
+
 ## Configuration
 
 Environment variables override the repository-root `.env` file. Blank values use defaults; unknown keys are ignored so Compose settings can share the same file.
@@ -36,6 +48,7 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `OLLAMA_MODEL`, `EMBEDDING_MODEL` | Optional model names; no models are loaded yet |
 | `UPLOAD_DIR` | `data/sample_contracts` |
 | `PROCESSED_DIR` | `data/processed` |
+| `MAX_PDF_SIZE_BYTES` | `26214400` (25 MiB) |
 | `POSTGRES_DB`, `POSTGRES_USER` | Compose defaults to `contracts` |
 | `POSTGRES_PASSWORD` | Required for Compose; choose a local password in `.env` |
 

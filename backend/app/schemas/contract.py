@@ -4,6 +4,8 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models import ContractStatus
+from app.schemas.obligation import ObligationRead
+from app.schemas.risk import RiskRead
 
 
 class ContractBase(BaseModel):
@@ -36,7 +38,7 @@ class ContractRead(ContractBase):
 class ContractChunkCreate(BaseModel):
     contract_id: UUID
     chunk_index: int = Field(ge=0)
-    content: str = Field(min_length=1)
+    content: str
     page_number: int | None = Field(default=None, ge=1)
 
 
@@ -45,3 +47,9 @@ class ContractChunkRead(ContractChunkCreate):
 
     id: UUID
     created_at: datetime
+
+
+class ContractDetail(ContractRead):
+    chunks: list[ContractChunkRead]
+    obligations: list[ObligationRead]
+    risks: list[RiskRead]

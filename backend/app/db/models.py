@@ -4,7 +4,17 @@ import enum
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -61,6 +71,9 @@ class Contract(Base):
 
 class ContractChunk(Base):
     __tablename__ = "contract_chunks"
+    __table_args__ = (
+        UniqueConstraint("contract_id", "chunk_index", name="uq_contract_chunk_index"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     contract_id: Mapped[uuid.UUID] = mapped_column(
