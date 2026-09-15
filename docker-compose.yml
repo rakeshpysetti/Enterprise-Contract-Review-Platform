@@ -8,9 +8,11 @@ services:
       APP_ENV: development
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contracts}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-contracts}
       OLLAMA_BASE_URL: http://ollama:11434
+      VECTOR_INDEX_DIR: /app/data/vector_indexes
     volumes:
       - ./backend:/app/backend:ro
       - ./.env:/app/.env:ro
+      - vector_index_data:/app/data/vector_indexes
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,3 +45,4 @@ services:
 volumes:
   postgres_data:
   ollama_data:
+  vector_index_data:

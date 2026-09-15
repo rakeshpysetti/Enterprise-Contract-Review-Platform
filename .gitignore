@@ -31,3 +31,4 @@ data/sample_contracts/*
 !data/sample_contracts/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/vector_indexes/

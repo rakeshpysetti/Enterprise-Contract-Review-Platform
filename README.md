@@ -1,6 +1,6 @@
 # Enterprise Contract Review & Obligation Extraction Platform
 
-A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. The current foundation provides a FastAPI application, a health endpoint, environment-based settings, tests, and local development containers. Contract processing, database access, and AI/RAG components remain placeholders.
+A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. It provides a FastAPI application, PDF ingestion, PostgreSQL persistence, contract-scoped semantic retrieval, tests, and local development containers. Obligation extraction, risk analysis, and question answering remain placeholders.
 
 ## Local setup
 
@@ -45,7 +45,11 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `APP_ENV` | `development`; also accepts `test` and `production` |
 | `DATABASE_URL` | SQLAlchemy PostgreSQL URL; defaults to the local Compose-compatible database |
 | `OLLAMA_BASE_URL` | `http://localhost:11434`; Compose overrides it to `http://ollama:11434` |
-| `OLLAMA_MODEL`, `EMBEDDING_MODEL` | Optional model names; no models are loaded yet |
+| `OLLAMA_MODEL` | Optional Ollama model name; no Ollama model is loaded yet |
+| `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
+| `EMBEDDING_DEVICE` | `cpu`; set to a supported accelerator when available |
+| `VECTOR_INDEX_DIR` | `data/vector_indexes` |
+| `RETRIEVAL_TOP_K` | `5`; accepts values from 1 to 100 |
 | `UPLOAD_DIR` | `data/sample_contracts` |
 | `PROCESSED_DIR` | `data/processed` |
 | `MAX_PDF_SIZE_BYTES` | `26214400` (25 MiB) |
@@ -53,6 +57,8 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `POSTGRES_PASSWORD` | Required for Compose; choose a local password in `.env` |
 
 Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
+
+Semantic retrieval uses a Hugging Face Sentence Transformers model and normalized vectors stored in a contract-specific FAISS exact-search index. Each index has JSON metadata mapping FAISS positions to database chunk UUIDs. Index files under `data/vector_indexes` are local generated data and are excluded from Git; Compose persists them in the `vector_index_data` volume. The first real embedding request downloads the configured model from Hugging Face; tests use deterministic local embeddings and perform no model download.
 
 ## Tests
 

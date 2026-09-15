@@ -7,7 +7,9 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY backend/app ./backend/app
 RUN pip install --no-cache-dir . \
-    && useradd --create-home appuser
+    && useradd --create-home appuser \
+    && mkdir -p /app/data/vector_indexes \
+    && chown -R appuser:appuser /app/data
 
 USER appuser
 EXPOSE 8000

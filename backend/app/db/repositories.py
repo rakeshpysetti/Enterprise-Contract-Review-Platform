@@ -1,6 +1,7 @@
 """Repository classes for database access."""
 
 import uuid
+from collections.abc import Sequence
 from typing import Generic, TypeVar
 
 from sqlalchemy import select
@@ -69,6 +70,17 @@ class ContractChunkRepository(Repository[ContractChunk]):
             .order_by(ContractChunk.chunk_index)
         )
         return list(self.session.scalars(statement))
+
+    def get_many_for_contract(
+        self, contract_id: uuid.UUID, chunk_ids: Sequence[uuid.UUID]
+    ) -> dict[uuid.UUID, ContractChunk]:
+        if not chunk_ids:
+            return {}
+        statement = select(ContractChunk).where(
+            ContractChunk.contract_id == contract_id,
+            ContractChunk.id.in_(chunk_ids),
+        )
+        return {chunk.id: chunk for chunk in self.session.scalars(statement)}
 
 
 class ObligationRepository(Repository[Obligation]):

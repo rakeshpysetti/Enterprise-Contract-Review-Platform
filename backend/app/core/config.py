@@ -25,7 +25,10 @@ class Settings(BaseSettings):
     )
     ollama_base_url: HttpUrl = "http://localhost:11434"
     ollama_model: str | None = None
-    embedding_model: str | None = None
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_device: str = "cpu"
+    vector_index_dir: Path = Path("data/vector_indexes")
+    retrieval_top_k: int = Field(default=5, ge=1, le=100)
     upload_dir: Path = Path("data/sample_contracts")
     processed_dir: Path = Path("data/processed")
     max_pdf_size_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
