@@ -31,6 +31,9 @@ curl -X POST http://localhost:8000/contracts \
   -F "title=Master Services Agreement"
 curl http://localhost:8000/contracts
 curl http://localhost:8000/contracts/CONTRACT_ID
+curl -X POST http://localhost:8000/contracts/CONTRACT_ID/search \
+  -H "Content-Type: application/json" \
+  -d '{"query":"What are the termination notice requirements?","top_k":3}'
 ```
 
 Uploads are validated by extension, media type, PDF signature, and PyMuPDF parsing. Text is cleaned and stored as one chunk per non-empty page with its original page number. Password-protected, damaged, empty, textless, and oversized PDFs are rejected. Uploaded binaries are not retained.
@@ -58,7 +61,7 @@ Environment variables override the repository-root `.env` file. Blank values use
 
 Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
 
-Semantic retrieval uses a Hugging Face Sentence Transformers model and normalized vectors stored in a contract-specific FAISS exact-search index. Each index has JSON metadata mapping FAISS positions to database chunk UUIDs. Index files under `data/vector_indexes` are local generated data and are excluded from Git; Compose persists them in the `vector_index_data` volume. The first real embedding request downloads the configured model from Hugging Face; tests use deterministic local embeddings and perform no model download.
+Semantic retrieval uses a Hugging Face Sentence Transformers model and normalized vectors stored in a contract-specific FAISS exact-search index. Each index has JSON metadata mapping FAISS positions to database chunk UUIDs. `POST /contracts/{contract_id}/search` returns relevant text, source page numbers, and cosine similarity scores. The index is created lazily and rebuilt when its model or contract chunks change. Index files under `data/vector_indexes` are local generated data and are excluded from Git; Compose persists them in the `vector_index_data` volume. The first real embedding request downloads the configured model from Hugging Face; tests use deterministic local embeddings and perform no model download.
 
 ## Tests
 

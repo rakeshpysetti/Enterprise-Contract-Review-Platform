@@ -4,11 +4,17 @@ import uuid
 
 from sqlalchemy.orm import Session
 
-from app.ai.rag.index import ContractVectorIndexStore, VectorIndexMetadata
+from app.ai.rag.index import (
+    ContractVectorIndexStore,
+    VectorIndexMetadata,
+    VectorIndexNotFoundError,
+)
 from app.core.config import Settings
 from app.services.embedding_service import HuggingFaceEmbeddingService
 from app.services.retrieval_service import (
     RetrievalResult,
+    EmbeddingModelMismatchError,
+    StaleVectorIndexError,
     build_contract_index,
     retrieve_contract_chunks,
 )
@@ -40,11 +46,27 @@ class ContractRetriever:
         *,
         top_k: int | None = None,
     ) -> list[RetrievalResult]:
-        return retrieve_contract_chunks(
-            session,
-            contract_id=contract_id,
-            query=query,
-            embeddings=self.embeddings,
-            index_store=self.index_store,
-            top_k=top_k if top_k is not None else self.settings.retrieval_top_k,
-        )
+        result_count = top_k if top_k is not None else self.settings.retrieval_top_k
+        try:
+            return retrieve_contract_chunks(
+                session,
+                contract_id=contract_id,
+                query=query,
+                embeddings=self.embeddings,
+                index_store=self.index_store,
+                top_k=result_count,
+            )
+        except (
+            VectorIndexNotFoundError,
+            EmbeddingModelMismatchError,
+            StaleVectorIndexError,
+        ):
+            self.index_contract(session, contract_id)
+            return retrieve_contract_chunks(
+                session,
+                contract_id=contract_id,
+                query=query,
+                embeddings=self.embeddings,
+                index_store=self.index_store,
+                top_k=result_count,
+            )

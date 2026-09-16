@@ -23,6 +23,14 @@ class ContractHasNoChunksError(ValueError):
     pass
 
 
+class EmbeddingModelMismatchError(ValueError):
+    pass
+
+
+class StaleVectorIndexError(VectorIndexError):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class RetrievalResult:
     chunk: ContractChunk
@@ -61,17 +69,24 @@ def retrieve_contract_chunks(
 ) -> list[RetrievalResult]:
     if not query.strip():
         raise ValueError("A retrieval query is required")
+    if ContractRepository(session).get(contract_id) is None:
+        raise ContractNotFoundError(f"Contract {contract_id} was not found")
     query_vector = embeddings.encode([query])[0]
     matches, metadata = index_store.search(
         contract_id=contract_id, query_vector=query_vector, top_k=top_k
     )
     if metadata.model_name != embeddings.model_name:
-        raise ValueError("Query embedding model does not match the indexed model")
+        raise EmbeddingModelMismatchError(
+            "Query embedding model does not match the indexed model"
+        )
+    current_chunks = ContractChunkRepository(session).list_for_contract(contract_id)
+    if {str(chunk.id) for chunk in current_chunks} != set(metadata.chunk_ids):
+        raise StaleVectorIndexError("Contract chunks changed after indexing")
     chunks_by_id = ContractChunkRepository(session).get_many_for_contract(
         contract_id, [match.chunk_id for match in matches]
     )
     if len(chunks_by_id) != len(matches):
-        raise VectorIndexError("Vector index references missing contract chunks")
+        raise StaleVectorIndexError("Vector index references missing contract chunks")
     return [
         RetrievalResult(chunk=chunks_by_id[match.chunk_id], score=match.score)
         for match in matches

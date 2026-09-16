@@ -17,6 +17,10 @@ class VectorIndexError(RuntimeError):
     pass
 
 
+class VectorIndexNotFoundError(VectorIndexError):
+    pass
+
+
 @dataclass(frozen=True, slots=True)
 class VectorIndexMetadata:
     contract_id: str
@@ -72,8 +76,9 @@ class ContractVectorIndexStore:
         contract_dir.mkdir(parents=True, exist_ok=True)
         index_path = contract_dir / "index.faiss"
         metadata_path = contract_dir / "metadata.json"
-        temporary_index = contract_dir / "index.faiss.tmp"
-        temporary_metadata = contract_dir / "metadata.json.tmp"
+        operation_id = uuid.uuid4().hex
+        temporary_index = contract_dir / f"index.{operation_id}.tmp"
+        temporary_metadata = contract_dir / f"metadata.{operation_id}.tmp"
 
         faiss.write_index(index, str(temporary_index))
         index_bytes = temporary_index.read_bytes()
@@ -100,7 +105,9 @@ class ContractVectorIndexStore:
         index_path = contract_dir / "index.faiss"
         metadata_path = contract_dir / "metadata.json"
         if not index_path.is_file() or not metadata_path.is_file():
-            raise VectorIndexError(f"No vector index exists for contract {contract_id}")
+            raise VectorIndexNotFoundError(
+                f"No vector index exists for contract {contract_id}"
+            )
 
         try:
             raw_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
@@ -146,7 +153,8 @@ class ContractVectorIndexStore:
         scores, positions = index.search(query, result_count)
         matches = [
             VectorMatch(
-                chunk_id=uuid.UUID(metadata.chunk_ids[position]), score=float(score)
+                chunk_id=uuid.UUID(metadata.chunk_ids[position]),
+                score=max(-1.0, min(1.0, float(score))),
             )
             for score, position in zip(scores[0], positions[0], strict=True)
             if position >= 0
