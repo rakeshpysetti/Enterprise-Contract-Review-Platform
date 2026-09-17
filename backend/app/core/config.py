@@ -24,7 +24,11 @@ class Settings(BaseSettings):
         "postgresql+psycopg://contracts:contracts@localhost:5432/contracts"
     )
     ollama_base_url: HttpUrl = "http://localhost:11434"
-    ollama_model: str | None = None
+    ollama_model: str = "gemma3"
+    ollama_timeout_seconds: float = Field(default=120.0, gt=0)
+    ollama_max_retries: int = Field(default=2, ge=0, le=10)
+    ollama_retry_backoff_seconds: float = Field(default=0.5, ge=0, le=60)
+    ollama_temperature: float = Field(default=0.0, ge=0, le=2)
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_device: str = "cpu"
     vector_index_dir: Path = Path("data/vector_indexes")

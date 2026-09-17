@@ -48,7 +48,11 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `APP_ENV` | `development`; also accepts `test` and `production` |
 | `DATABASE_URL` | SQLAlchemy PostgreSQL URL; defaults to the local Compose-compatible database |
 | `OLLAMA_BASE_URL` | `http://localhost:11434`; Compose overrides it to `http://ollama:11434` |
-| `OLLAMA_MODEL` | Optional Ollama model name; no Ollama model is loaded yet |
+| `OLLAMA_MODEL` | `gemma3` |
+| `OLLAMA_TIMEOUT_SECONDS` | `120` seconds per request |
+| `OLLAMA_MAX_RETRIES` | `2` retries after the initial request |
+| `OLLAMA_RETRY_BACKOFF_SECONDS` | `0.5`, with exponential backoff |
+| `OLLAMA_TEMPERATURE` | `0.0`; accepts values from 0 to 2 |
 | `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
 | `EMBEDDING_DEVICE` | `cpu`; set to a supported accelerator when available |
 | `VECTOR_INDEX_DIR` | `data/vector_indexes` |
@@ -61,6 +65,8 @@ Environment variables override the repository-root `.env` file. Blank values use
 
 Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
 
+The `LLMService` abstraction connects to Ollama through its non-streaming generation API. It supports plain text and Pydantic-validated structured JSON output, configured timeouts, retries for connection failures, HTTP 429 responses, and server errors, plus explicit errors for malformed model responses. Pull the configured model before use, for example `docker compose exec ollama ollama pull gemma3`. No model is downloaded automatically.
+
 Semantic retrieval uses a Hugging Face Sentence Transformers model and normalized vectors stored in a contract-specific FAISS exact-search index. Each index has JSON metadata mapping FAISS positions to database chunk UUIDs. `POST /contracts/{contract_id}/search` returns relevant text, source page numbers, and cosine similarity scores. The index is created lazily and rebuilt when its model or contract chunks change. Index files under `data/vector_indexes` are local generated data and are excluded from Git; Compose persists them in the `vector_index_data` volume. The first real embedding request downloads the configured model from Hugging Face; tests use deterministic local embeddings and perform no model download.
 
 ## Tests
@@ -69,7 +75,7 @@ Semantic retrieval uses a Hugging Face Sentence Transformers model and normalize
 python -m pytest
 ```
 
-Tests cover the health response, OpenAPI registration, environment settings, SQLAlchemy models and relationships, repository queries, cascade deletion, schema validation, and secret redaction. Database tests use isolated in-memory SQLite and do not require PostgreSQL, Ollama, or model downloads. Other test files remain empty placeholders.
+Tests cover health and OpenAPI behavior, environment settings, SQLAlchemy models and repositories, PDF ingestion, semantic retrieval, Ollama generation and retries, schema validation, and secret redaction. Database tests use isolated in-memory SQLite, embedding tests use deterministic local vectors, and Ollama tests use a mock HTTP transport. Tests do not require PostgreSQL, Ollama, or model downloads.
 
 ## Docker development
 
@@ -82,7 +88,7 @@ docker compose logs -f api
 docker compose down
 ```
 
-FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. API startup waits for PostgreSQL health and for the Ollama container to start. PostgreSQL and Ollama use named volumes; `docker compose down` preserves them. Models are not downloaded automatically. The API does not yet connect to either service.
+FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. API startup waits for PostgreSQL health and for the Ollama container to start. PostgreSQL and Ollama use named volumes; `docker compose down` preserves them. Models are not downloaded automatically.
 
 The Dockerfile runs the API as a non-root user and includes a health check. `docker-compose.prod.yml` and GitHub workflows remain placeholders; this Compose configuration is for local development.
 
