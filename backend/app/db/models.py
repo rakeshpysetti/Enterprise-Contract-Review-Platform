@@ -11,6 +11,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
@@ -51,6 +52,13 @@ class Contract(Base):
     )
     effective_date: Mapped[date | None] = mapped_column(Date)
     expiration_date: Mapped[date | None] = mapped_column(Date)
+    renewal_date: Mapped[date | None] = mapped_column(Date)
+    contract_type: Mapped[str | None] = mapped_column(String(255), index=True)
+    parties: Mapped[list[dict[str, str | None]]] = mapped_column(
+        JSON, default=list
+    )
+    governing_law: Mapped[str | None] = mapped_column(String(255))
+    payment_terms: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )
