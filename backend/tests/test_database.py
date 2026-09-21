@@ -10,6 +10,7 @@ from app.db.models import (
     ContractChunk,
     ContractStatus,
     Obligation,
+    ObligationPriority,
     Risk,
     RiskLevel,
 )
@@ -48,7 +49,14 @@ def test_contract_relationships_and_schema_serialization(session: Session):
     )
     contract.chunks.append(ContractChunk(chunk_index=0, content="Payment terms"))
     contract.obligations.append(
-        Obligation(title="Pay invoices", description="Payment is due in 30 days")
+        Obligation(
+            title="Pay invoices",
+            description="Payment is due in 30 days",
+            priority=ObligationPriority.high,
+            source_text="Payment is due in 30 days",
+            page_number=1,
+            confidence=0.95,
+        )
     )
     contract.risks.append(
         Risk(
@@ -83,7 +91,15 @@ def test_repositories_filter_related_records(session: Session):
         [
             ContractChunk(contract_id=first.id, chunk_index=1, content="second"),
             ContractChunk(contract_id=first.id, chunk_index=0, content="first"),
-            Obligation(contract_id=first.id, title="Notify", description="Notify party"),
+            Obligation(
+                contract_id=first.id,
+                title="Notify",
+                description="Notify party",
+                priority=ObligationPriority.medium,
+                source_text="Notify party",
+                page_number=1,
+                confidence=0.9,
+            ),
             Risk(
                 contract_id=first.id,
                 title="Renewal",

@@ -39,6 +39,13 @@ class RiskLevel(str, enum.Enum):
     critical = "critical"
 
 
+class ObligationPriority(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    critical = "critical"
+
+
 class Contract(Base):
     __tablename__ = "contracts"
 
@@ -106,9 +113,18 @@ class Obligation(Base):
     )
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str] = mapped_column(Text)
-    responsible_party: Mapped[str | None] = mapped_column(String(255))
+    responsible_party: Mapped[str | None] = mapped_column(String(255), index=True)
+    counterparty: Mapped[str | None] = mapped_column(String(255))
     due_date: Mapped[date | None] = mapped_column(Date)
-    source_text: Mapped[str | None] = mapped_column(Text)
+    recurring_frequency: Mapped[str | None] = mapped_column(String(255))
+    priority: Mapped[ObligationPriority] = mapped_column(
+        Enum(ObligationPriority, name="obligation_priority"),
+        default=ObligationPriority.medium,
+        index=True,
+    )
+    source_text: Mapped[str] = mapped_column(Text)
+    page_number: Mapped[int] = mapped_column(Integer)
+    confidence: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )

@@ -1,6 +1,6 @@
 # Enterprise Contract Review & Obligation Extraction Platform
 
-A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. It provides a FastAPI application, PDF ingestion, PostgreSQL persistence, contract-scoped semantic retrieval, tests, and local development containers. Obligation extraction, risk analysis, and question answering remain placeholders.
+A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. It provides a FastAPI application, PDF ingestion, PostgreSQL persistence, contract metadata and obligation extraction, contract-scoped semantic retrieval, tests, and local development containers. Risk analysis and question answering remain placeholders.
 
 ## Local setup
 
@@ -65,7 +65,7 @@ Environment variables override the repository-root `.env` file. Blank values use
 
 Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
 
-The `LLMService` abstraction connects to Ollama through its non-streaming generation API. It supports plain text and Pydantic-validated structured JSON output, configured timeouts, retries for connection failures, HTTP 429 responses, and server errors, plus explicit errors for malformed model responses. The contract extraction chain uses a packaged prompt to extract and store title, type, parties, effective, expiration and renewal dates, governing law, and payment terms. Missing or ambiguous facts remain null rather than being inferred. Pull the configured model before use, for example `docker compose exec ollama ollama pull gemma3`. No model is downloaded automatically.
+The `LLMService` abstraction connects to Ollama through its non-streaming generation API. It supports plain text and Pydantic-validated structured JSON output, configured timeouts, retries for connection failures, HTTP 429 responses, and server errors, plus explicit errors for malformed model responses. Packaged prompts drive contract metadata and obligation extraction. Obligations include the responsible party, counterparty, due date, recurring frequency, priority, exact source quote, page number, and confidence. Source quotes and page references are validated against the stored contract before existing obligations are replaced. Pull the configured model before use, for example `docker compose exec ollama ollama pull gemma3`. No model is downloaded automatically.
 
 Semantic retrieval uses a Hugging Face Sentence Transformers model and normalized vectors stored in a contract-specific FAISS exact-search index. Each index has JSON metadata mapping FAISS positions to database chunk UUIDs. `POST /contracts/{contract_id}/search` returns relevant text, source page numbers, and cosine similarity scores. The index is created lazily and rebuilt when its model or contract chunks change. Index files under `data/vector_indexes` are local generated data and are excluded from Git; Compose persists them in the `vector_index_data` volume. The first real embedding request downloads the configured model from Hugging Face; tests use deterministic local embeddings and perform no model download.
 

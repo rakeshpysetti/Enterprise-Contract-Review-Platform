@@ -87,8 +87,22 @@ class ObligationRepository(Repository[Obligation]):
     model = Obligation
 
     def list_for_contract(self, contract_id: uuid.UUID) -> list[Obligation]:
-        statement = select(Obligation).where(Obligation.contract_id == contract_id)
+        statement = (
+            select(Obligation)
+            .where(Obligation.contract_id == contract_id)
+            .order_by(Obligation.page_number, Obligation.created_at, Obligation.id)
+        )
         return list(self.session.scalars(statement))
+
+    def replace_for_contract(
+        self, contract_id: uuid.UUID, obligations: Sequence[Obligation]
+    ) -> list[Obligation]:
+        for existing in self.list_for_contract(contract_id):
+            self.session.delete(existing)
+        self.session.flush()
+        self.session.add_all(obligations)
+        self.session.flush()
+        return list(obligations)
 
 
 class RiskRepository(Repository[Risk]):
