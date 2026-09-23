@@ -139,14 +139,16 @@ class Risk(Base):
     contract_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("contracts.id", ondelete="CASCADE"), index=True
     )
-    title: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(255), index=True)
     description: Mapped[str] = mapped_column(Text)
     level: Mapped[RiskLevel] = mapped_column(
         Enum(RiskLevel, name="risk_level"), index=True
     )
-    score: Mapped[float | None] = mapped_column(Float)
-    recommendation: Mapped[str | None] = mapped_column(Text)
-    source_text: Mapped[str | None] = mapped_column(Text)
+    why_it_matters: Mapped[str] = mapped_column(Text)
+    recommendation: Mapped[str] = mapped_column(Text)
+    source_text: Mapped[str] = mapped_column(Text)
+    page_number: Mapped[int] = mapped_column(Integer)
+    confidence: Mapped[float] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )

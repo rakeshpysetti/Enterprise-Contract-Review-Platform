@@ -109,5 +109,19 @@ class RiskRepository(Repository[Risk]):
     model = Risk
 
     def list_for_contract(self, contract_id: uuid.UUID) -> list[Risk]:
-        statement = select(Risk).where(Risk.contract_id == contract_id)
+        statement = (
+            select(Risk)
+            .where(Risk.contract_id == contract_id)
+            .order_by(Risk.page_number, Risk.created_at, Risk.id)
+        )
         return list(self.session.scalars(statement))
+
+    def replace_for_contract(
+        self, contract_id: uuid.UUID, risks: Sequence[Risk]
+    ) -> list[Risk]:
+        for existing in self.list_for_contract(contract_id):
+            self.session.delete(existing)
+        self.session.flush()
+        self.session.add_all(risks)
+        self.session.flush()
+        return list(risks)

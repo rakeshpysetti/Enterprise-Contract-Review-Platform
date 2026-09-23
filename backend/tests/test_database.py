@@ -60,10 +60,14 @@ def test_contract_relationships_and_schema_serialization(session: Session):
     )
     contract.risks.append(
         Risk(
-            title="Unlimited liability",
+            category="Liability",
             description="Liability is not capped",
             level=RiskLevel.high,
-            score=0.9,
+            why_it_matters="This may create material exposure.",
+            recommendation="Consider reviewing a liability cap.",
+            source_text="Liability is not capped",
+            page_number=1,
+            confidence=0.9,
         )
     )
     repository = ContractRepository(session)
@@ -102,9 +106,14 @@ def test_repositories_filter_related_records(session: Session):
             ),
             Risk(
                 contract_id=first.id,
-                title="Renewal",
+                category="Renewal",
                 description="Automatic renewal",
                 level=RiskLevel.medium,
+                why_it_matters="This may extend the term unexpectedly.",
+                recommendation="Consider reviewing the notice period.",
+                source_text="Automatic renewal",
+                page_number=1,
+                confidence=0.8,
             ),
             ContractChunk(contract_id=second.id, chunk_index=0, content="unrelated"),
         ]
@@ -129,14 +138,18 @@ def test_delete_contract_cascades_to_children(session: Session):
     assert session.get(ContractChunk, chunk_id) is None
 
 
-def test_risk_schema_rejects_score_outside_probability_range():
+def test_risk_schema_rejects_confidence_outside_probability_range():
     with pytest.raises(ValueError):
         RiskCreate(
             contract_id="6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-            title="Risk",
+            category="Risk",
             description="Description",
             level=RiskLevel.low,
-            score=1.1,
+            why_it_matters="This may matter.",
+            recommendation="Consider review.",
+            source_text="Source",
+            page_number=1,
+            confidence=1.1,
         )
 
 
