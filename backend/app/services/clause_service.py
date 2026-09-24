@@ -6,7 +6,8 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.ai.chains.clause_chain import ClauseDetectionChain
-from app.db.repositories import ContractRepository
+from app.db.models import Clause
+from app.db.repositories import ClauseRepository, ContractRepository
 from app.schemas.clause import ClauseDetection
 from app.services.llm_service import LLMService
 
@@ -21,12 +22,12 @@ class InvalidClauseSourceError(ValueError):
     pass
 
 
-def detect_contract_clauses(
+def detect_and_store_clauses(
     session: Session,
     *,
     contract_id: uuid.UUID,
     llm: LLMService,
-) -> ClauseDetection:
+) -> list[Clause]:
     contract = ContractRepository(session).get_with_details(contract_id)
     if contract is None:
         raise ContractNotFoundError(f"Contract {contract_id} was not found")
@@ -37,7 +38,17 @@ def detect_contract_clauses(
         if chunk.page_number is not None:
             text_by_page.setdefault(chunk.page_number, []).append(chunk.content)
     _validate_sources(detection, text_by_page)
-    return detection
+    clauses = [
+        Clause(
+            contract_id=contract.id,
+            clause_type=item.clause_type.value,
+            source_text=item.source_text,
+            page_number=item.page_number,
+            confidence=item.confidence,
+        )
+        for item in detection.clauses
+    ]
+    return ClauseRepository(session).replace_for_contract(contract.id, clauses)
 
 
 def _validate_sources(

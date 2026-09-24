@@ -1,6 +1,8 @@
 """Structured clause detection schemas."""
 
 import enum
+from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -30,3 +32,11 @@ class ClauseDetection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     clauses: list[DetectedClause] = Field(default_factory=list)
+
+
+class ClauseRead(DetectedClause):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    contract_id: UUID
+    created_at: datetime

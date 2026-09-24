@@ -7,9 +7,9 @@ from typing import Generic, TypeVar
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.models import Contract, ContractChunk, Obligation, Risk
+from app.db.models import Clause, Contract, ContractChunk, Obligation, Risk
 
-ModelT = TypeVar("ModelT", Contract, ContractChunk, Obligation, Risk)
+ModelT = TypeVar("ModelT", Contract, ContractChunk, Obligation, Clause, Risk)
 
 
 class Repository(Generic[ModelT]):
@@ -45,6 +45,7 @@ class ContractRepository(Repository[Contract]):
             .options(
                 selectinload(Contract.chunks),
                 selectinload(Contract.obligations),
+                selectinload(Contract.clauses),
                 selectinload(Contract.risks),
             )
         )
@@ -125,3 +126,25 @@ class RiskRepository(Repository[Risk]):
         self.session.add_all(risks)
         self.session.flush()
         return list(risks)
+
+
+class ClauseRepository(Repository[Clause]):
+    model = Clause
+
+    def list_for_contract(self, contract_id: uuid.UUID) -> list[Clause]:
+        statement = (
+            select(Clause)
+            .where(Clause.contract_id == contract_id)
+            .order_by(Clause.page_number, Clause.created_at, Clause.id)
+        )
+        return list(self.session.scalars(statement))
+
+    def replace_for_contract(
+        self, contract_id: uuid.UUID, clauses: Sequence[Clause]
+    ) -> list[Clause]:
+        for existing in self.list_for_contract(contract_id):
+            self.session.delete(existing)
+        self.session.flush()
+        self.session.add_all(clauses)
+        self.session.flush()
+        return list(clauses)

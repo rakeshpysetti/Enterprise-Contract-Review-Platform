@@ -66,7 +66,7 @@ def test_upload_extracts_clean_text_and_preserves_page_numbers(api):
     body = response.json()
     assert body["title"] == "Service Agreement"
     assert body["filename"] == "agreement.pdf"
-    assert body["status"] == ContractStatus.completed.value
+    assert body["status"] == ContractStatus.pending.value
     assert [chunk["page_number"] for chunk in body["chunks"]] == [1, 2]
     assert body["chunks"][0]["content"] == "First page\nPayment terms"
 

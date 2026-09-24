@@ -23,6 +23,8 @@ python -m uvicorn app.main:app --app-dir backend --reload
 
 Open <http://localhost:8000/health> for `{"status":"ok"}` or <http://localhost:8000/docs> for interactive API documentation. `/health` checks process liveness only; it does not verify PostgreSQL or Ollama availability. Stop the server with Ctrl+C.
 
+Upload a PDF with `POST /contracts`, then run its complete review with `POST /contracts/{contract_id}/analyze`. Upload creates cleaned, page-aware chunks and leaves the contract in `pending`. Analysis moves it through `processing` to `completed`, or to `failed` when a step cannot finish. It creates or refreshes the semantic index when required, extracts and persists metadata, obligations, detected clauses, and risks, and returns the complete stored result. Repeating analysis for a completed contract returns the existing result with `analysis_reused: true` without calling the embedding or language models again.
+
 Upload a PDF as multipart form data; `title` is optional and defaults to the filename:
 
 ```sh

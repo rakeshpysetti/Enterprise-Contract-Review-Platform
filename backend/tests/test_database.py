@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.database import Base, get_session_factory
 from app.db.models import (
     Contract,
+    Clause,
     ContractChunk,
     ContractStatus,
     Obligation,
@@ -15,6 +16,7 @@ from app.db.models import (
     RiskLevel,
 )
 from app.db.repositories import (
+    ClauseRepository,
     ContractChunkRepository,
     ContractRepository,
     ObligationRepository,
@@ -58,6 +60,14 @@ def test_contract_relationships_and_schema_serialization(session: Session):
             confidence=0.95,
         )
     )
+    contract.clauses.append(
+        Clause(
+            clause_type="payment",
+            source_text="Payment is due in 30 days",
+            page_number=1,
+            confidence=0.94,
+        )
+    )
     contract.risks.append(
         Risk(
             category="Liability",
@@ -76,9 +86,10 @@ def test_contract_relationships_and_schema_serialization(session: Session):
 
     stored = repository.get_with_details(contract.id)
     assert stored is not None
-    assert stored.status is ContractStatus.uploaded
+    assert stored.status is ContractStatus.pending
     assert stored.chunks[0].contract is stored
     assert stored.obligations[0].contract is stored
+    assert stored.clauses[0].contract is stored
     assert stored.risks[0].contract is stored
     assert ContractRead.model_validate(stored).filename == "msa.pdf"
     assert ContractChunkRead.model_validate(stored.chunks[0]).chunk_index == 0
@@ -115,6 +126,13 @@ def test_repositories_filter_related_records(session: Session):
                 page_number=1,
                 confidence=0.8,
             ),
+            Clause(
+                contract_id=first.id,
+                clause_type="renewal",
+                source_text="Automatic renewal",
+                page_number=1,
+                confidence=0.85,
+            ),
             ContractChunk(contract_id=second.id, chunk_index=0, content="unrelated"),
         ]
     )
@@ -122,6 +140,7 @@ def test_repositories_filter_related_records(session: Session):
 
     assert [item.chunk_index for item in ContractChunkRepository(session).list_for_contract(first.id)] == [0, 1]
     assert len(ObligationRepository(session).list_for_contract(first.id)) == 1
+    assert len(ClauseRepository(session).list_for_contract(first.id)) == 1
     assert len(RiskRepository(session).list_for_contract(first.id)) == 1
     assert len(ContractRepository(session).list(limit=1)) == 1
 
@@ -155,5 +174,5 @@ def test_risk_schema_rejects_confidence_outside_probability_range():
 
 def test_models_create_expected_tables(session: Session):
     tables = set(Base.metadata.tables)
-    assert tables == {"contracts", "contract_chunks", "obligations", "risks"}
+    assert tables == {"contracts", "contract_chunks", "obligations", "clauses", "risks"}
     assert session.scalar(select(Contract)) is None

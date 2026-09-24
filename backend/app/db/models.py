@@ -26,7 +26,7 @@ def utc_now() -> datetime:
 
 
 class ContractStatus(str, enum.Enum):
-    uploaded = "uploaded"
+    pending = "pending"
     processing = "processing"
     completed = "completed"
     failed = "failed"
@@ -54,7 +54,7 @@ class Contract(Base):
     filename: Mapped[str] = mapped_column(String(255))
     status: Mapped[ContractStatus] = mapped_column(
         Enum(ContractStatus, name="contract_status"),
-        default=ContractStatus.uploaded,
+        default=ContractStatus.pending,
         index=True,
     )
     effective_date: Mapped[date | None] = mapped_column(Date)
@@ -77,6 +77,9 @@ class Contract(Base):
         back_populates="contract", cascade="all, delete-orphan"
     )
     obligations: Mapped[list["Obligation"]] = relationship(
+        back_populates="contract", cascade="all, delete-orphan"
+    )
+    clauses: Mapped[list["Clause"]] = relationship(
         back_populates="contract", cascade="all, delete-orphan"
     )
     risks: Mapped[list["Risk"]] = relationship(
@@ -130,6 +133,24 @@ class Obligation(Base):
     )
 
     contract: Mapped[Contract] = relationship(back_populates="obligations")
+
+
+class Clause(Base):
+    __tablename__ = "clauses"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    contract_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contracts.id", ondelete="CASCADE"), index=True
+    )
+    clause_type: Mapped[str] = mapped_column(String(64), index=True)
+    source_text: Mapped[str] = mapped_column(Text)
+    page_number: Mapped[int] = mapped_column(Integer)
+    confidence: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+
+    contract: Mapped[Contract] = relationship(back_populates="clauses")
 
 
 class Risk(Base):

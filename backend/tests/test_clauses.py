@@ -7,11 +7,12 @@ from sqlalchemy import create_engine
 from app.ai.chains.clause_chain import ClauseDetectionChain
 from app.db.database import Base, get_session_factory
 from app.db.models import Contract, ContractChunk
+from app.db.repositories import ClauseRepository
 from app.schemas.clause import ClauseDetection, ClauseType, DetectedClause
 from app.services.clause_service import (
     ContractNotFoundError,
     InvalidClauseSourceError,
-    detect_contract_clauses,
+    detect_and_store_clauses,
 )
 
 
@@ -98,16 +99,17 @@ def test_chain_uses_packaged_prompt_and_structured_output(clause_session):
 def test_detects_all_supported_clause_types_with_evidence(clause_session):
     contract = make_contract(clause_session)
 
-    result = detect_contract_clauses(
+    result = detect_and_store_clauses(
         clause_session,
         contract_id=contract.id,
         llm=MockStructuredLLM(all_clause_results(contract)),
     )
 
-    assert [clause.clause_type for clause in result.clauses] == list(ClauseType)
-    assert all(clause.source_text for clause in result.clauses)
-    assert [clause.page_number for clause in result.clauses] == list(range(1, 10))
-    assert all(clause.confidence == pytest.approx(0.95) for clause in result.clauses)
+    assert [clause.clause_type for clause in result] == [item.value for item in ClauseType]
+    assert all(clause.source_text for clause in result)
+    assert [clause.page_number for clause in result] == list(range(1, 10))
+    assert all(clause.confidence == pytest.approx(0.95) for clause in result)
+    assert len(ClauseRepository(clause_session).list_for_contract(contract.id)) == 9
 
 
 def test_source_validation_supports_multiple_chunks_on_one_page(clause_session):
@@ -133,13 +135,13 @@ def test_source_validation_supports_multiple_chunks_on_one_page(clause_session):
         ]
     )
 
-    detected = detect_contract_clauses(
+    detected = detect_and_store_clauses(
         clause_session,
         contract_id=contract.id,
         llm=MockStructuredLLM(result),
     )
 
-    assert detected == result
+    assert detected[0].source_text == result.clauses[0].source_text
 
 
 @pytest.mark.parametrize(
@@ -165,7 +167,7 @@ def test_rejects_invalid_source_evidence(
     )
 
     with pytest.raises(InvalidClauseSourceError, match=message):
-        detect_contract_clauses(
+        detect_and_store_clauses(
             clause_session,
             contract_id=contract.id,
             llm=MockStructuredLLM(result),
@@ -175,7 +177,7 @@ def test_rejects_invalid_source_evidence(
 def test_missing_and_empty_contracts_are_rejected(clause_session):
     empty_result = ClauseDetection()
     with pytest.raises(ContractNotFoundError):
-        detect_contract_clauses(
+        detect_and_store_clauses(
             clause_session,
             contract_id=uuid4(),
             llm=MockStructuredLLM(empty_result),
@@ -184,7 +186,7 @@ def test_missing_and_empty_contracts_are_rejected(clause_session):
     clause_session.add(empty)
     clause_session.commit()
     with pytest.raises(ValueError, match="does not contain text chunks"):
-        detect_contract_clauses(
+        detect_and_store_clauses(
             clause_session,
             contract_id=empty.id,
             llm=MockStructuredLLM(empty_result),

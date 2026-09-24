@@ -33,7 +33,7 @@ def ingest_contract(
     contract = Contract(
         title=contract_title[:255],
         filename=safe_filename,
-        status=ContractStatus.completed,
+        status=ContractStatus.pending,
         chunks=[
             ContractChunk(
                 chunk_index=page.page_number - 1,

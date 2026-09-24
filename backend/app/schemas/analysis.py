@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.contract import ContractDetail
+
 
 class ContractSearchRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
@@ -21,3 +23,7 @@ class ContractSearchResponse(BaseModel):
     contract_id: UUID
     query: str
     results: list[ContractSearchResult]
+
+
+class ContractAnalysisResponse(ContractDetail):
+    analysis_reused: bool
