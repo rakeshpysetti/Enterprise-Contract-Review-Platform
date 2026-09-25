@@ -1,6 +1,6 @@
 # Enterprise Contract Review & Obligation Extraction Platform
 
-A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. It provides a FastAPI application, PDF ingestion, PostgreSQL persistence, contract metadata, obligation and risk extraction, clause detection, contract-scoped semantic retrieval, tests, and local development containers. Question answering remains a placeholder.
+A platform for reviewing enterprise contracts and extracting contractual obligations to support organized analysis and tracking. It provides a FastAPI application, PDF ingestion, PostgreSQL persistence, contract metadata, obligation and risk extraction, clause detection, contract-scoped semantic retrieval and question answering, tests, and local development containers.
 
 ## Local setup
 
@@ -36,6 +36,9 @@ curl http://localhost:8000/contracts/CONTRACT_ID
 curl -X POST http://localhost:8000/contracts/CONTRACT_ID/search \
   -H "Content-Type: application/json" \
   -d '{"query":"What are the termination notice requirements?","top_k":3}'
+curl -X POST http://localhost:8000/contracts/CONTRACT_ID/questions \
+  -H "Content-Type: application/json" \
+  -d '{"question":"When are invoices due?","top_k":5}'
 ```
 
 Uploads are validated by extension, media type, PDF signature, and PyMuPDF parsing. Text is cleaned and stored as one chunk per non-empty page with its original page number. Password-protected, damaged, empty, textless, and oversized PDFs are rejected. Uploaded binaries are not retained.
@@ -70,6 +73,8 @@ Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver.
 The `LLMService` abstraction connects to Ollama through its non-streaming generation API. It supports plain text and Pydantic-validated structured JSON output, configured timeouts, retries for connection failures, HTTP 429 responses, and server errors, plus explicit errors for malformed model responses. Packaged prompts drive contract metadata, obligation and risk extraction, and detection of termination, renewal, payment, confidentiality, indemnification, limitation of liability, SLA, data protection, and dispute resolution clauses. Risk extraction uses cautious review language and stores severity, category, why-it-matters context, recommended review action, exact source quote, page number, and confidence. Source quotes and page references are validated against the stored contract before prior results are replaced. Pull the configured model before use, for example `docker compose exec ollama ollama pull gemma3`. No model is downloaded automatically.
 
 Semantic retrieval uses a Hugging Face Sentence Transformers model and normalized vectors stored in a contract-specific FAISS exact-search index. Each index has JSON metadata mapping FAISS positions to database chunk UUIDs. `POST /contracts/{contract_id}/search` returns relevant text, source page numbers, and cosine similarity scores. The index is created lazily and rebuilt when its model or contract chunks change. Index files under `data/vector_indexes` are local generated data and are excluded from Git; Compose persists them in the `vector_index_data` volume. The first real embedding request downloads the configured model from Hugging Face; tests use deterministic local embeddings and perform no model download.
+
+`POST /contracts/{contract_id}/questions` retrieves context only from the selected contract and sends that context to Ollama. Answers include the supporting chunk excerpts, page citations, and a confidence score. Model citations are checked against the retrieved chunks. When the retrieved contract text does not answer a question, the response uses `answered: false`, a null answer, no sources, and zero confidence.
 
 ## Tests
 
