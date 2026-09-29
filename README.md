@@ -37,6 +37,7 @@ curl "http://localhost:8000/contracts?contract_type=NDA&expiration_date_to=2027-
 curl "http://localhost:8000/contracts/CONTRACT_ID/obligations?priority=high"
 curl "http://localhost:8000/contracts/CONTRACT_ID/risks?severity=critical"
 curl "http://localhost:8000/contracts/CONTRACT_ID/clauses"
+curl "http://localhost:8000/contracts/CONTRACT_ID/summary"
 curl -X POST http://localhost:8000/contracts/CONTRACT_ID/search \
   -H "Content-Type: application/json" \
   -d '{"query":"What are the termination notice requirements?","top_k":3}'
@@ -48,6 +49,8 @@ curl -X POST http://localhost:8000/contracts/CONTRACT_ID/questions \
 Uploads are validated by extension, media type, PDF signature, and PyMuPDF parsing. Text is cleaned and stored as one chunk per non-empty page with its original page number. Password-protected, damaged, empty, textless, and oversized PDFs are rejected. Uploaded binaries are not retained.
 
 Contract listing supports `contract_type`, `party`, inclusive `expiration_date_from` and `expiration_date_to`, and inclusive `renewal_date_from` and `renewal_date_to` query filters. Party matching is case-insensitive against party names. Contract, obligation, risk, and clause listings support `offset` and `limit`. Obligation listings accept a `priority` filter, and risk listings accept a `severity` filter.
+
+`GET /contracts/{contract_id}/summary` returns severity counts, the highest persisted risk level, obligation count, effective, expiration, and renewal dates, and detected key clauses with source excerpts, pages, and confidence.
 
 ## Configuration
 

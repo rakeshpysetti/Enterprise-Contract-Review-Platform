@@ -15,11 +15,16 @@ from app.db.repositories import (
     RiskRepository,
 )
 from app.schemas.clause import ClauseRead
+from app.schemas.analysis import ContractSummaryResponse
 from app.schemas.contract import ContractDetail, ContractRead
 from app.schemas.obligation import ObligationRead
 from app.schemas.risk import RiskRead
 from app.services.contract_service import ingest_contract
 from app.services.document_service import InvalidPDFError
+from app.services.summary_service import (
+    ContractNotFoundError as SummaryContractNotFoundError,
+    build_contract_summary,
+)
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -144,6 +149,18 @@ def list_clauses(
             contract_id, offset=offset, limit=limit
         )
     ]
+
+
+@router.get("/{contract_id}/summary", response_model=ContractSummaryResponse)
+def get_contract_summary(
+    contract_id: UUID, session: DatabaseSession
+) -> ContractSummaryResponse:
+    try:
+        return build_contract_summary(session, contract_id=contract_id)
+    except SummaryContractNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found"
+        ) from error
 
 
 @router.get("/{contract_id}", response_model=ContractDetail)

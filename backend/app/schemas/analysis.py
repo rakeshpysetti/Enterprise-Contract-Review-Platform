@@ -1,8 +1,11 @@
+from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.contract import ContractDetail
+from app.db.models import ContractStatus, RiskLevel
+from app.schemas.clause import ClauseType
 
 
 class ContractSearchRequest(BaseModel):
@@ -70,3 +73,36 @@ class ContractQuestionResponse(BaseModel):
     answer: str | None
     sources: list[ContractAnswerSource]
     confidence: float = Field(ge=0, le=1)
+
+
+class ContractRiskCounts(BaseModel):
+    low: int = Field(ge=0)
+    medium: int = Field(ge=0)
+    high: int = Field(ge=0)
+    critical: int = Field(ge=0)
+    total: int = Field(ge=0)
+
+
+class ContractImportantDates(BaseModel):
+    effective_date: date | None
+    expiration_date: date | None
+    renewal_date: date | None
+
+
+class ContractSummaryClause(BaseModel):
+    clause_type: ClauseType
+    source_excerpt: str = Field(min_length=1)
+    page_number: int = Field(ge=1)
+    confidence: float = Field(ge=0, le=1)
+
+
+class ContractSummaryResponse(BaseModel):
+    contract_id: UUID
+    title: str
+    contract_type: str | None
+    status: ContractStatus
+    risk_counts: ContractRiskCounts
+    obligation_count: int = Field(ge=0)
+    important_dates: ContractImportantDates
+    key_clauses: list[ContractSummaryClause]
+    overall_risk_level: RiskLevel | None
