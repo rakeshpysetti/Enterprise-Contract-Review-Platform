@@ -2,8 +2,9 @@
 
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
-from pydantic import Field, HttpUrl, SecretStr
+from pydantic import Field, HttpUrl, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,3 +37,34 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("data/sample_contracts")
     processed_dir: Path = Path("data/processed")
     max_pdf_size_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
+    cors_origins: list[str] = Field(default_factory=list)
+    cors_allow_credentials: bool = False
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, origins: list[str]) -> list[str]:
+        validated: list[str] = []
+        for raw_origin in origins:
+            origin = raw_origin.strip().rstrip("/")
+            if origin == "*":
+                validated.append(origin)
+                continue
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.netloc
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("CORS origins must be valid HTTP or HTTPS origins")
+            validated.append(origin)
+        return list(dict.fromkeys(validated))
+
+    @model_validator(mode="after")
+    def validate_cors_credentials(self) -> "Settings":
+        if self.cors_allow_credentials and "*" in self.cors_origins:
+            raise ValueError("Wildcard CORS origins cannot allow credentials")
+        return self

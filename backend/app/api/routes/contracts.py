@@ -20,7 +20,11 @@ from app.schemas.contract import ContractDetail, ContractRead
 from app.schemas.obligation import ObligationRead
 from app.schemas.risk import RiskRead
 from app.services.contract_service import ingest_contract
-from app.services.document_service import InvalidPDFError
+from app.services.document_service import (
+    InvalidPDFError,
+    UploadTooLargeError,
+    read_upload_safely,
+)
 from app.services.summary_service import (
     ContractNotFoundError as SummaryContractNotFoundError,
     build_contract_summary,
@@ -38,14 +42,12 @@ async def upload_contract(
 ) -> ContractDetail:
     max_size = request.app.state.settings.max_pdf_size_bytes
     try:
-        data = await file.read(max_size + 1)
-    finally:
-        await file.close()
-    if len(data) > max_size:
+        data = await read_upload_safely(file, max_size_bytes=max_size)
+    except UploadTooLargeError as error:
         raise HTTPException(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
-            detail=f"PDF exceeds the {max_size}-byte upload limit",
-        )
+            detail=str(error),
+        ) from error
 
     try:
         contract = ingest_contract(

@@ -74,10 +74,14 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `UPLOAD_DIR` | `data/sample_contracts` |
 | `PROCESSED_DIR` | `data/processed` |
 | `MAX_PDF_SIZE_BYTES` | `26214400` (25 MiB) |
+| `CORS_ORIGINS` | JSON array of allowed origins; empty disables cross-origin access |
+| `CORS_ALLOW_CREDENTIALS` | `false`; wildcard origins cannot enable credentials |
 | `POSTGRES_DB`, `POSTGRES_USER` | Compose defaults to `contracts` |
 | `POSTGRES_PASSWORD` | Required for Compose; choose a local password in `.env` |
 
 Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
+
+Every response includes `X-Request-ID` and `X-Correlation-ID`. Callers may supply either header using letters, digits, `.`, `_`, or `-`, up to 128 characters. API errors use a centralized JSON shape containing `detail` and an `error` object with a stable code and request identifiers. Access logs are structured JSON and contain route templates and timing metadata only; request bodies, query strings, uploaded filenames, contract text, authorization values, and secrets are excluded or redacted. Uploads are streamed through an automatically deleted spooled temporary file and rejected as soon as `MAX_PDF_SIZE_BYTES` is exceeded.
 
 The `LLMService` abstraction connects to Ollama through its non-streaming generation API. It supports plain text and Pydantic-validated structured JSON output, configured timeouts, retries for connection failures, HTTP 429 responses, and server errors, plus explicit errors for malformed model responses. Packaged prompts drive contract metadata, obligation and risk extraction, and detection of termination, renewal, payment, confidentiality, indemnification, limitation of liability, SLA, data protection, and dispute resolution clauses. Risk extraction uses cautious review language and stores severity, category, why-it-matters context, recommended review action, exact source quote, page number, and confidence. Source quotes and page references are validated against the stored contract before prior results are replaced. Pull the configured model before use, for example `docker compose exec ollama ollama pull gemma3`. No model is downloaded automatically.
 
