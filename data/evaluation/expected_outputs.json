@@ -1,0 +1,38 @@
+{
+  "version": "1.0",
+  "contracts": [
+    {
+      "contract_id": "msa-001",
+      "metadata": {"title": "Master Services Agreement", "contract_type": "MSA", "parties": [{"name": "Northstar Analytics LLC", "role": "Provider"}, {"name": "Cedar Retail Inc.", "role": "Customer"}], "effective_date": "2026-01-15", "expiration_date": null, "renewal_date": null, "governing_law": "New York", "payment_terms": "Undisputed invoices due within 30 days after receipt."},
+      "obligations": [
+        {"title": "Pay invoices", "description": "Pay each undisputed invoice within 30 days after receipt.", "responsible_party": "Cedar Retail Inc.", "counterparty": "Northstar Analytics LLC", "due_date": null, "recurring_frequency": "per invoice", "priority": "HIGH", "source_text": "Customer shall pay each undisputed invoice within 30 days after receipt.", "page_number": 2, "confidence": 1.0},
+        {"title": "Give termination notice", "description": "Give 60 days written notice before termination for convenience.", "responsible_party": "Either party", "counterparty": "Other party", "due_date": null, "recurring_frequency": "as needed", "priority": "MEDIUM", "source_text": "Either party may terminate for convenience by giving the other party 60 days written notice.", "page_number": 3, "confidence": 1.0}
+      ],
+      "risks": [{"category": "Unlimited liability", "description": "Provider liability is unlimited.", "level": "CRITICAL", "why_it_matters": "Exposure is uncapped and includes consequential damages.", "recommendation": "Have counsel review and negotiate a liability cap.", "source_text": "Provider's liability for all claims is unlimited, including indirect and consequential damages.", "page_number": 4, "confidence": 1.0}],
+      "qa": [
+        {"question_id": "msa-payment", "question": "When are invoices due?", "answer": "Undisputed invoices are due within 30 days after receipt.", "supporting_chunk_ids": ["msa-001-p2"]},
+        {"question_id": "msa-insurance", "question": "What insurance limits apply?", "answer": null, "supporting_chunk_ids": []}
+      ]
+    },
+    {
+      "contract_id": "nda-001",
+      "metadata": {"title": "Mutual Non-Disclosure Agreement", "contract_type": "NDA", "parties": [{"name": "Blue Harbor Labs Inc.", "role": "Party"}, {"name": "Pinecone Systems Ltd.", "role": "Party"}], "effective_date": "2026-02-01", "expiration_date": "2028-02-01", "renewal_date": null, "governing_law": "California", "payment_terms": null},
+      "obligations": [{"title": "Return or destroy confidential information", "description": "Return or destroy confidential information within 10 days after request.", "responsible_party": "Receiving party", "counterparty": "Disclosing party", "due_date": null, "recurring_frequency": "on written request", "priority": "HIGH", "source_text": "Each receiving party must return or destroy confidential information within 10 days after a written request from the disclosing party.", "page_number": 2, "confidence": 1.0}],
+      "risks": [{"category": "Indefinite data retention", "description": "Archival copies may be retained indefinitely.", "level": "MEDIUM", "why_it_matters": "Indefinite retention extends disclosure exposure.", "recommendation": "Review retention limits and safeguards.", "source_text": "A receiving party may retain archival copies indefinitely when required by its internal backup policy.", "page_number": 3, "confidence": 1.0}],
+      "qa": [
+        {"question_id": "nda-return", "question": "When must confidential information be returned?", "answer": "Within 10 days after a written request.", "supporting_chunk_ids": ["nda-001-p2"]},
+        {"question_id": "nda-termination", "question": "Can either party terminate for convenience?", "answer": null, "supporting_chunk_ids": []}
+      ]
+    },
+    {
+      "contract_id": "saas-001",
+      "metadata": {"title": "Cloud Subscription Agreement", "contract_type": "SaaS", "parties": [{"name": "Atlas Software Corp.", "role": "Supplier"}, {"name": "Meridian Health Group", "role": "Subscriber"}], "effective_date": "2026-03-01", "expiration_date": "2027-02-28", "renewal_date": "2027-03-01", "governing_law": "Delaware", "payment_terms": "Annual fees due in advance within 15 days of invoice."},
+      "obligations": [{"title": "Provide service credit report", "description": "Provide a service credit report after each affected month.", "responsible_party": "Atlas Software Corp.", "counterparty": "Meridian Health Group", "due_date": null, "recurring_frequency": "within 5 business days after each affected month", "priority": "MEDIUM", "source_text": "Supplier shall maintain 99.9% monthly availability and provide a service credit report to Subscriber within 5 business days after each affected month.", "page_number": 3, "confidence": 1.0}],
+      "risks": [{"category": "Automatic renewal", "description": "The agreement renews unless timely notice is given.", "level": "HIGH", "why_it_matters": "A missed deadline creates another one-year term.", "recommendation": "Calendar the notice deadline and review renewal intent.", "source_text": "The subscription renews automatically for one-year terms unless either party gives notice by January 30, 2027.", "page_number": 4, "confidence": 1.0}],
+      "qa": [
+        {"question_id": "saas-uptime", "question": "What availability must the supplier maintain?", "answer": "99.9% monthly availability.", "supporting_chunk_ids": ["saas-001-p3"]},
+        {"question_id": "saas-renewal", "question": "When is renewal notice due?", "answer": "January 30, 2027.", "supporting_chunk_ids": ["saas-001-p4"]}
+      ]
+    }
+  ]
+}

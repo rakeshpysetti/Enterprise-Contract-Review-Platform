@@ -97,6 +97,16 @@ python -m pytest
 
 Tests cover health and OpenAPI behavior, environment settings, SQLAlchemy models and repositories, PDF ingestion, semantic retrieval, Ollama generation and retries, schema validation, and secret redaction. Database tests use isolated in-memory SQLite, embedding tests use deterministic local vectors, and Ollama tests use a mock HTTP transport. Tests do not require PostgreSQL, Ollama, or model downloads.
 
+## Evaluation
+
+Run the small synthetic contract benchmark and write deterministic metrics to `data/evaluation/results.json`:
+
+```sh
+python scripts/evaluate_extraction.py --output data/evaluation/results.json
+```
+
+See [docs/evaluation.md](docs/evaluation.md) for the dataset format, metric definitions, reference results, and limitations.
+
 ## Docker development
 
 Requires Docker Engine or Docker Desktop with Compose v2. Create `.env` and set `POSTGRES_PASSWORD` before running:
@@ -121,6 +131,7 @@ With GNU Make installed and the virtual environment activated:
 | `make install` | Install the project and test dependencies |
 | `make run` | Start the local API with reload |
 | `make test` | Run pytest |
+| `make evaluate` | Evaluate the reference prediction snapshot |
 | `make docker-config` | Validate Compose configuration |
 | `make docker-up` | Build and start development services |
 | `make docker-down` | Stop services while preserving volumes |

@@ -1,0 +1,81 @@
+{
+  "dataset_version": "1.0",
+  "contracts_evaluated": 3,
+  "metadata": {
+    "correct": 22,
+    "total": 24,
+    "accuracy": 0.9167,
+    "per_field": {
+      "title": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1.0
+      },
+      "contract_type": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1.0
+      },
+      "parties": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1.0
+      },
+      "effective_date": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1.0
+      },
+      "expiration_date": {
+        "correct": 2,
+        "total": 3,
+        "accuracy": 0.6667
+      },
+      "renewal_date": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1.0
+      },
+      "governing_law": {
+        "correct": 2,
+        "total": 3,
+        "accuracy": 0.6667
+      },
+      "payment_terms": {
+        "correct": 3,
+        "total": 3,
+        "accuracy": 1.0
+      }
+    }
+  },
+  "obligations": {
+    "true_positive": 3,
+    "false_positive": 1,
+    "false_negative": 1,
+    "precision": 0.75,
+    "recall": 0.75,
+    "f1": 0.75
+  },
+  "risks": {
+    "correct": 2,
+    "expected": 3,
+    "predicted": 3,
+    "matched": 3,
+    "classification_accuracy": 0.6667,
+    "detection_precision": 1.0,
+    "detection_recall": 1.0
+  },
+  "qa": {
+    "answer_correct": 4,
+    "grounded": 4,
+    "total": 6,
+    "answer_accuracy": 0.6667,
+    "grounding_rate": 0.6667,
+    "citation_true_positive": 4,
+    "citation_false_positive": 2,
+    "citation_false_negative": 0,
+    "citation_precision": 0.6667,
+    "citation_recall": 1.0,
+    "citation_f1": 0.8
+  }
+}

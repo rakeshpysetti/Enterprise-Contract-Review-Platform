@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install run test docker-up docker-down docker-logs docker-config
+.PHONY: install run test evaluate docker-up docker-down docker-logs docker-config
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -10,6 +10,9 @@ run:
 
 test:
 	$(PYTHON) -m pytest
+
+evaluate:
+	$(PYTHON) scripts/evaluate_extraction.py --output data/evaluation/results.json
 
 docker-up:
 	docker compose up --build -d

@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "description": "Fictional contracts created solely for repeatable evaluation.",
+  "contracts": [
+    {
+      "contract_id": "msa-001",
+      "chunks": [
+        {"chunk_id": "msa-001-p1", "page_number": 1, "text": "MASTER SERVICES AGREEMENT between Northstar Analytics LLC (Provider) and Cedar Retail Inc. (Customer), effective January 15, 2026. This agreement is governed by New York law."},
+        {"chunk_id": "msa-001-p2", "page_number": 2, "text": "Customer shall pay each undisputed invoice within 30 days after receipt."},
+        {"chunk_id": "msa-001-p3", "page_number": 3, "text": "Either party may terminate for convenience by giving the other party 60 days written notice."},
+        {"chunk_id": "msa-001-p4", "page_number": 4, "text": "Provider's liability for all claims is unlimited, including indirect and consequential damages."}
+      ]
+    },
+    {
+      "contract_id": "nda-001",
+      "chunks": [
+        {"chunk_id": "nda-001-p1", "page_number": 1, "text": "MUTUAL NON-DISCLOSURE AGREEMENT between Blue Harbor Labs Inc. and Pinecone Systems Ltd., effective February 1, 2026 and expiring February 1, 2028. California law governs."},
+        {"chunk_id": "nda-001-p2", "page_number": 2, "text": "Each receiving party must return or destroy confidential information within 10 days after a written request from the disclosing party."},
+        {"chunk_id": "nda-001-p3", "page_number": 3, "text": "A receiving party may retain archival copies indefinitely when required by its internal backup policy."}
+      ]
+    },
+    {
+      "contract_id": "saas-001",
+      "chunks": [
+        {"chunk_id": "saas-001-p1", "page_number": 1, "text": "CLOUD SUBSCRIPTION AGREEMENT between Atlas Software Corp. (Supplier) and Meridian Health Group (Subscriber), effective March 1, 2026 through February 28, 2027. Delaware law governs."},
+        {"chunk_id": "saas-001-p2", "page_number": 2, "text": "Subscriber shall pay annual subscription fees in advance within 15 days of invoice."},
+        {"chunk_id": "saas-001-p3", "page_number": 3, "text": "Supplier shall maintain 99.9% monthly availability and provide a service credit report to Subscriber within 5 business days after each affected month."},
+        {"chunk_id": "saas-001-p4", "page_number": 4, "text": "The subscription renews automatically for one-year terms unless either party gives notice by January 30, 2027."}
+      ]
+    }
+  ]
+}
