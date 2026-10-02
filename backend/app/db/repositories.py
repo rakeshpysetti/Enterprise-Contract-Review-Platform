@@ -5,9 +5,6 @@ from collections.abc import Sequence
 from datetime import date
 from typing import Generic, TypeVar
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
-
 from app.db.models import (
     Clause,
     Contract,
@@ -17,6 +14,8 @@ from app.db.models import (
     Risk,
     RiskLevel,
 )
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, selectinload
 
 ModelT = TypeVar("ModelT", Contract, ContractChunk, Obligation, Clause, Risk)
 

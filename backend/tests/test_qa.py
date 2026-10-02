@@ -4,11 +4,6 @@ from uuid import UUID, uuid4
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
-from pydantic import ValidationError
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
-
 from app.ai.rag.index import ContractVectorIndexStore
 from app.ai.rag.retriever import ContractRetriever
 from app.api.dependencies import get_contract_retriever, get_llm_service
@@ -17,6 +12,10 @@ from app.db.database import Base, get_db, get_session_factory
 from app.db.models import Contract, ContractChunk
 from app.main import create_app
 from app.schemas.analysis import GroundedAnswer
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 
 class DeterministicEmbeddings:
@@ -28,9 +27,10 @@ class DeterministicEmbeddings:
         for text in texts:
             vector = np.zeros(self.dimension, dtype=np.float32)
             for token in text.lower().split():
-                position = int.from_bytes(
-                    hashlib.sha256(token.encode()).digest()[:2], "big"
-                ) % self.dimension
+                position = (
+                    int.from_bytes(hashlib.sha256(token.encode()).digest()[:2], "big")
+                    % self.dimension
+                )
                 vector[position] += 1
             norm = np.linalg.norm(vector)
             if norm:
@@ -239,7 +239,9 @@ def test_question_endpoint_reports_missing_and_empty_contracts(qa_api):
 )
 def test_question_endpoint_validates_requests(qa_api, payload):
     client, (first_id, _, _), _, _, _ = qa_api
-    assert client.post(f"/contracts/{first_id}/questions", json=payload).status_code == 422
+    assert (
+        client.post(f"/contracts/{first_id}/questions", json=payload).status_code == 422
+    )
 
 
 @pytest.mark.parametrize(

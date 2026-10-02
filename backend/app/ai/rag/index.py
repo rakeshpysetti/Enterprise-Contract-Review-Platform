@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import faiss
 import numpy as np
@@ -100,7 +101,7 @@ class ContractVectorIndexStore:
         os.replace(temporary_metadata, metadata_path)
         return metadata
 
-    def load(self, contract_id: uuid.UUID) -> tuple[object, VectorIndexMetadata]:
+    def load(self, contract_id: uuid.UUID) -> tuple[Any, VectorIndexMetadata]:
         contract_dir = self._contract_dir(contract_id)
         index_path = contract_dir / "index.faiss"
         metadata_path = contract_dir / "metadata.json"

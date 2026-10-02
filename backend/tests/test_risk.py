@@ -1,9 +1,6 @@
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel, ValidationError
-from sqlalchemy import create_engine
-
 from app.ai.chains.risk_chain import RiskExtractionChain
 from app.db.database import Base, get_session_factory
 from app.db.models import Contract, ContractChunk, Risk, RiskLevel
@@ -14,6 +11,8 @@ from app.services.risk_service import (
     InvalidRiskSourceError,
     extract_and_store_risks,
 )
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import create_engine
 
 
 class MockStructuredLLM:
@@ -46,7 +45,10 @@ def extraction_result(level: RiskLevel = RiskLevel.high) -> RiskExtraction:
                 description="The agreement does not state an aggregate liability cap.",
                 level=level,
                 why_it_matters="This may create exposure beyond anticipated fees.",
-                recommendation="Consider reviewing whether an appropriate cap should be negotiated.",
+                recommendation=(
+                    "Consider reviewing whether an appropriate cap should be "
+                    "negotiated."
+                ),
                 source_text="Supplier's liability shall be unlimited.",
                 page_number=2,
                 confidence=0.96,
@@ -198,7 +200,9 @@ def test_invalid_sources_do_not_replace_existing_risks(
             llm=MockStructuredLLM(invalid),
         )
     risk_session.expire_all()
-    assert RiskRepository(risk_session).list_for_contract(contract.id)[0].id == existing.id
+    assert (
+        RiskRepository(risk_session).list_for_contract(contract.id)[0].id == existing.id
+    )
 
 
 def test_missing_and_empty_contracts_are_rejected(risk_session):

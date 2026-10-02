@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 
 import fitz
-
 from app.services.chunking_service import clean_text
 from app.services.document_service import InvalidPDFError
 

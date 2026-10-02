@@ -3,13 +3,12 @@
 import re
 import uuid
 
-from sqlalchemy.orm import Session
-
 from app.ai.chains.obligation_chain import ObligationExtractionChain
 from app.db.models import Obligation
 from app.db.repositories import ContractRepository, ObligationRepository
 from app.schemas.obligation import ObligationExtraction
 from app.services.llm_service import LLMService
+from sqlalchemy.orm import Session
 
 _WHITESPACE = re.compile(r"\s+")
 

@@ -3,10 +3,9 @@
 from collections.abc import Generator
 from functools import lru_cache
 
+from app.core.config import Settings
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-
-from app.core.config import Settings
 
 
 class Base(DeclarativeBase):

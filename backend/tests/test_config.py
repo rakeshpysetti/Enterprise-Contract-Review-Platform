@@ -1,8 +1,7 @@
 import pytest
-from pydantic import ValidationError
-
 from app.core.config import Settings
 from app.main import create_app
+from pydantic import ValidationError
 
 
 def test_environment_overrides_dotenv(tmp_path, monkeypatch):

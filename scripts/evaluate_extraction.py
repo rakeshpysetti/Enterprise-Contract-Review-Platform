@@ -9,7 +9,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MISSING = object()
 METADATA_FIELDS = (
@@ -52,7 +51,9 @@ def _index(items: list[dict[str, Any]], source: str) -> dict[str, dict[str, Any]
         if not isinstance(identifier, str) or not identifier.strip():
             raise EvaluationDataError(f"{source} contains an invalid contract_id")
         if identifier in indexed:
-            raise EvaluationDataError(f"{source} contains duplicate contract_id {identifier!r}")
+            raise EvaluationDataError(
+                f"{source} contains duplicate contract_id {identifier!r}"
+            )
         indexed[identifier] = item
     return indexed
 
@@ -72,38 +73,65 @@ def _ratio(numerator: int, denominator: int) -> float:
 
 
 def _f1(precision: float, recall: float) -> float:
-    return round(2 * precision * recall / (precision + recall), 4) if precision + recall else 0.0
+    return (
+        round(2 * precision * recall / (precision + recall), 4)
+        if precision + recall
+        else 0.0
+    )
 
 
-def _metadata(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    per_field = {field: {"correct": 0, "total": 0} for field in METADATA_FIELDS}
+def _metadata(
+    expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    per_field: dict[str, dict[str, Any]] = {
+        field: {"correct": 0, "total": 0} for field in METADATA_FIELDS
+    }
     for contract_id, gold in expected.items():
         gold_metadata = gold.get("metadata", {})
         predicted_metadata = predicted[contract_id].get("metadata", {})
-        if not isinstance(gold_metadata, dict) or not isinstance(predicted_metadata, dict):
+        if not isinstance(gold_metadata, dict) or not isinstance(
+            predicted_metadata, dict
+        ):
             raise EvaluationDataError(f"metadata for {contract_id!r} must be an object")
         for field in METADATA_FIELDS:
             per_field[field]["total"] += 1
-            if field in predicted_metadata and _normal(gold_metadata.get(field)) == _normal(predicted_metadata[field]):
+            if field in predicted_metadata and _normal(
+                gold_metadata.get(field)
+            ) == _normal(predicted_metadata[field]):
                 per_field[field]["correct"] += 1
     correct = sum(value["correct"] for value in per_field.values())
     total = sum(value["total"] for value in per_field.values())
     for value in per_field.values():
         value["accuracy"] = _ratio(value["correct"], value["total"])
-    return {"correct": correct, "total": total, "accuracy": _ratio(correct, total), "per_field": per_field}
+    return {
+        "correct": correct,
+        "total": total,
+        "accuracy": _ratio(correct, total),
+        "per_field": per_field,
+    }
 
 
 def _obligation_key(item: dict[str, Any]) -> tuple[Any, ...]:
-    return tuple(_normal(item.get(field)) for field in (
-        "title", "responsible_party", "counterparty", "due_date", "recurring_frequency", "page_number"
-    ))
+    return tuple(
+        _normal(item.get(field))
+        for field in (
+            "title",
+            "responsible_party",
+            "counterparty",
+            "due_date",
+            "recurring_frequency",
+            "page_number",
+        )
+    )
 
 
 def _risk_key(item: dict[str, Any]) -> tuple[Any, ...]:
     return _normal(item.get("category")), item.get("page_number")
 
 
-def _obligations(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _obligations(
+    expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     true_positive = false_positive = false_negative = 0
     for contract_id, gold in expected.items():
         gold_items = gold.get("obligations", [])
@@ -128,7 +156,9 @@ def _obligations(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[
     }
 
 
-def _risks(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _risks(
+    expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     expected_count = predicted_count = matched = correct = 0
     for contract_id, gold in expected.items():
         gold_items = gold.get("risks", [])
@@ -142,7 +172,9 @@ def _risks(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, A
         for key, gold_risk in gold_by_key.items():
             if key in predicted_by_key:
                 matched += 1
-                if _normal(gold_risk.get("level")) == _normal(predicted_by_key[key].get("level")):
+                if _normal(gold_risk.get("level")) == _normal(
+                    predicted_by_key[key].get("level")
+                ):
                     correct += 1
     return {
         "correct": correct,
@@ -155,7 +187,9 @@ def _risks(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, A
     }
 
 
-def _qa(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _qa(
+    expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     total = answer_correct = grounded = citation_tp = citation_fp = citation_fn = 0
     for contract_id, gold in expected.items():
         gold_cases = gold.get("qa", [])
@@ -167,16 +201,30 @@ def _qa(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]
             question_id = gold_case.get("question_id")
             prediction = predicted_by_id.get(question_id)
             expected_answer = gold_case.get("answer")
-            predicted_answer = prediction.get("answer", MISSING) if prediction is not None else MISSING
+            predicted_answer = (
+                prediction.get("answer", MISSING) if prediction is not None else MISSING
+            )
             expected_citations = set(gold_case.get("supporting_chunk_ids", []))
-            predicted_citations = set(prediction.get("cited_chunk_ids", [])) if prediction is not None else set()
+            predicted_citations = (
+                set(prediction.get("cited_chunk_ids", []))
+                if prediction is not None
+                else set()
+            )
             total += 1
             if _normal(expected_answer) == _normal(predicted_answer):
                 answer_correct += 1
             if expected_answer is None:
-                is_grounded = prediction is not None and predicted_answer is None and not predicted_citations
+                is_grounded = (
+                    prediction is not None
+                    and predicted_answer is None
+                    and not predicted_citations
+                )
             else:
-                is_grounded = predicted_answer is not None and bool(predicted_citations) and predicted_citations <= expected_citations
+                is_grounded = (
+                    predicted_answer is not None
+                    and bool(predicted_citations)
+                    and predicted_citations <= expected_citations
+                )
             grounded += int(is_grounded)
             citation_tp += len(expected_citations & predicted_citations)
             citation_fp += len(predicted_citations - expected_citations)
@@ -198,28 +246,45 @@ def _qa(expected: dict[str, dict[str, Any]], predicted: dict[str, dict[str, Any]
     }
 
 
-def evaluate_files(dataset_path: Path, expected_path: Path, predictions_path: Path) -> dict[str, Any]:
+def evaluate_files(
+    dataset_path: Path, expected_path: Path, predictions_path: Path
+) -> dict[str, Any]:
     dataset_document = _load(dataset_path)
     expected_document = _load(expected_path)
     predictions_document = _load(predictions_path)
     datasets = _index(_items(dataset_document, "contracts", "dataset"), "dataset")
     expected = _index(_items(expected_document, "contracts", "expected"), "expected")
-    predicted = _index(_items(predictions_document, "contracts", "predictions"), "predictions")
+    predicted = _index(
+        _items(predictions_document, "contracts", "predictions"), "predictions"
+    )
     if set(datasets) != set(expected) or set(datasets) != set(predicted):
-        raise EvaluationDataError("dataset, expected outputs, and predictions must contain the same contract IDs")
+        raise EvaluationDataError(
+            "dataset, expected outputs, and predictions must contain the same "
+            "contract IDs"
+        )
     for contract_id, contract in datasets.items():
         chunks = contract.get("chunks")
         if not isinstance(chunks, list):
             raise EvaluationDataError(f"chunks for {contract_id!r} must be a list")
-        chunk_ids = [chunk.get("chunk_id") for chunk in chunks if isinstance(chunk, dict)]
-        if len(chunk_ids) != len(chunks) or any(not isinstance(value, str) for value in chunk_ids):
-            raise EvaluationDataError(f"chunks for {contract_id!r} must contain string chunk IDs")
+        chunk_ids = [
+            chunk.get("chunk_id") for chunk in chunks if isinstance(chunk, dict)
+        ]
+        if len(chunk_ids) != len(chunks) or any(
+            not isinstance(value, str) for value in chunk_ids
+        ):
+            raise EvaluationDataError(
+                f"chunks for {contract_id!r} must contain string chunk IDs"
+            )
         if len(set(chunk_ids)) != len(chunk_ids):
-            raise EvaluationDataError(f"chunks for {contract_id!r} contain duplicate chunk IDs")
+            raise EvaluationDataError(
+                f"chunks for {contract_id!r} contain duplicate chunk IDs"
+            )
         for case in expected[contract_id].get("qa", []):
             citations = case.get("supporting_chunk_ids", [])
             if not isinstance(citations, list) or not set(citations) <= set(chunk_ids):
-                raise EvaluationDataError(f"gold citations for {contract_id!r} must reference dataset chunks")
+                raise EvaluationDataError(
+                    f"gold citations for {contract_id!r} must reference dataset chunks"
+                )
     return {
         "dataset_version": dataset_document.get("version"),
         "contracts_evaluated": len(datasets),
@@ -232,9 +297,17 @@ def evaluate_files(dataset_path: Path, expected_path: Path, predictions_path: Pa
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", type=Path, default=ROOT / "data/evaluation/contracts.json")
-    parser.add_argument("--expected", type=Path, default=ROOT / "data/evaluation/expected_outputs.json")
-    parser.add_argument("--predictions", type=Path, default=ROOT / "data/evaluation/reference_predictions.json")
+    parser.add_argument(
+        "--dataset", type=Path, default=ROOT / "data/evaluation/contracts.json"
+    )
+    parser.add_argument(
+        "--expected", type=Path, default=ROOT / "data/evaluation/expected_outputs.json"
+    )
+    parser.add_argument(
+        "--predictions",
+        type=Path,
+        default=ROOT / "data/evaluation/reference_predictions.json",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     results = evaluate_files(args.dataset, args.expected, args.predictions)

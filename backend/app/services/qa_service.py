@@ -2,8 +2,6 @@
 
 import uuid
 
-from sqlalchemy.orm import Session
-
 from app.ai.chains.qa_chain import ContractQAChain
 from app.ai.rag.retriever import ContractRetriever
 from app.schemas.analysis import (
@@ -11,6 +9,7 @@ from app.schemas.analysis import (
     ContractQuestionResponse,
 )
 from app.services.llm_service import LLMService
+from sqlalchemy.orm import Session
 
 
 class InvalidAnswerCitationError(ValueError):

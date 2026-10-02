@@ -5,9 +5,6 @@ import logging
 import tempfile
 
 import pytest
-from fastapi.testclient import TestClient
-from pydantic import ValidationError
-
 from app.core.config import Settings
 from app.core.logging import configure_logging
 from app.main import create_app
@@ -18,6 +15,8 @@ from app.services.document_service import (
     read_upload_safely,
     validate_pdf,
 )
+from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 
 class FakeUpload:

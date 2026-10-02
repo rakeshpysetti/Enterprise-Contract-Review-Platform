@@ -2,9 +2,6 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
-from pydantic import ValidationError
-from sqlalchemy import create_engine
-
 from app.ai.chains.extraction_chain import ContractExtractionChain
 from app.db.database import Base, get_session_factory
 from app.db.models import Contract, ContractChunk
@@ -13,6 +10,8 @@ from app.services.analysis_service import (
     ContractNotFoundError,
     extract_and_store_contract_metadata,
 )
+from pydantic import ValidationError
+from sqlalchemy import create_engine
 
 
 class MockStructuredLLM:
@@ -56,8 +55,12 @@ def extracted_metadata() -> ContractMetadata:
 def test_chain_uses_packaged_prompt_page_order_and_structured_schema():
     llm = MockStructuredLLM(extracted_metadata())
     chunks = [
-        ContractChunk(chunk_index=1, page_number=3, content="Payment is due in 30 days."),
-        ContractChunk(chunk_index=0, page_number=1, content="MASTER SERVICES AGREEMENT"),
+        ContractChunk(
+            chunk_index=1, page_number=3, content="Payment is due in 30 days."
+        ),
+        ContractChunk(
+            chunk_index=0, page_number=1, content="MASTER SERVICES AGREEMENT"
+        ),
     ]
     result = ContractExtractionChain(llm).run(chunks)
 

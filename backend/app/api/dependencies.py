@@ -2,13 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import Depends
-from fastapi import Request
-from sqlalchemy.orm import Session
-
-from app.db.database import get_db
 from app.ai.rag.retriever import ContractRetriever
+from app.db.database import get_db
 from app.services.llm_service import LLMService, OllamaLLMService
+from fastapi import Depends, Request
+from sqlalchemy.orm import Session
 
 DatabaseSession = Annotated[Session, Depends(get_db)]
 

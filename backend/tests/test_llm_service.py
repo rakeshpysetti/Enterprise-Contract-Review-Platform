@@ -2,14 +2,13 @@ import json
 
 import httpx
 import pytest
-from pydantic import BaseModel, Field
-
 from app.services.llm_service import (
     LLMConnectionError,
     LLMHTTPError,
     LLMMalformedResponseError,
     OllamaLLMService,
 )
+from pydantic import BaseModel, Field
 
 
 class ExtractedParty(BaseModel):
@@ -44,9 +43,10 @@ def test_text_generation_sends_configured_ollama_request():
         }
         return httpx.Response(200, json={"response": "Summary", "done": True})
 
-    assert make_service(handler).generate(
-        "Summarize the contract", system="Be concise"
-    ) == "Summary"
+    assert (
+        make_service(handler).generate("Summarize the contract", system="Be concise")
+        == "Summary"
+    )
 
 
 def test_structured_generation_sends_schema_and_validates_result():

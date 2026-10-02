@@ -4,21 +4,20 @@ import enum
 import uuid
 from datetime import date, datetime, timezone
 
+from app.db.database import Base
 from sqlalchemy import (
+    JSON,
     Date,
     DateTime,
     Enum,
     Float,
     ForeignKey,
     Integer,
-    JSON,
     String,
     Text,
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from app.db.database import Base
 
 
 def utc_now() -> datetime:
@@ -61,9 +60,7 @@ class Contract(Base):
     expiration_date: Mapped[date | None] = mapped_column(Date)
     renewal_date: Mapped[date | None] = mapped_column(Date)
     contract_type: Mapped[str | None] = mapped_column(String(255), index=True)
-    parties: Mapped[list[dict[str, str | None]]] = mapped_column(
-        JSON, default=list
-    )
+    parties: Mapped[list[dict[str, str | None]]] = mapped_column(JSON, default=list)
     governing_law: Mapped[str | None] = mapped_column(String(255))
     payment_terms: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(

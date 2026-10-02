@@ -2,12 +2,11 @@
 
 from pathlib import Path
 
-from sqlalchemy.orm import Session
-
 from app.db.models import Contract, ContractChunk, ContractStatus
 from app.db.repositories import ContractRepository
 from app.services.document_service import InvalidPDFError, validate_pdf
 from app.services.extraction_service import extract_pdf_pages
+from sqlalchemy.orm import Session
 
 
 def ingest_contract(

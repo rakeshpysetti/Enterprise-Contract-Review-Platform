@@ -2,8 +2,6 @@
 
 import uuid
 
-from sqlalchemy.orm import Session
-
 from app.ai.rag.index import (
     ContractVectorIndexStore,
     VectorIndexError,
@@ -16,12 +14,13 @@ from app.services.embedding_service import HuggingFaceEmbeddingService
 from app.services.retrieval_service import (
     ContractHasNoChunksError,
     ContractNotFoundError,
-    RetrievalResult,
     EmbeddingModelMismatchError,
+    RetrievalResult,
     StaleVectorIndexError,
     build_contract_index,
     retrieve_contract_chunks,
 )
+from sqlalchemy.orm import Session
 
 
 class ContractRetriever:

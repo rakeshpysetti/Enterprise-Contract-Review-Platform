@@ -1,9 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from app.db.models import RiskLevel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExtractedRisk(BaseModel):

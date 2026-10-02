@@ -2,15 +2,14 @@ from io import BytesIO
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-from reportlab.pdfgen.canvas import Canvas
-from sqlalchemy import create_engine, event, select
-from sqlalchemy.pool import StaticPool
-
 from app.core.config import Settings
 from app.db.database import Base, get_db, get_session_factory
 from app.db.models import Contract, ContractChunk, ContractStatus
 from app.main import create_app
+from fastapi.testclient import TestClient
+from reportlab.pdfgen.canvas import Canvas
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.pool import StaticPool
 
 
 def make_pdf(*pages: str) -> bytes:
@@ -72,8 +71,13 @@ def test_upload_extracts_clean_text_and_preserves_page_numbers(api):
 
     with session_factory() as session:
         assert session.scalar(select(Contract)).id.hex == body["id"].replace("-", "")
-        chunks = list(session.scalars(select(ContractChunk).order_by(ContractChunk.chunk_index)))
-        assert [(chunk.chunk_index, chunk.page_number) for chunk in chunks] == [(0, 1), (1, 2)]
+        chunks = list(
+            session.scalars(select(ContractChunk).order_by(ContractChunk.chunk_index))
+        )
+        assert [(chunk.chunk_index, chunk.page_number) for chunk in chunks] == [
+            (0, 1),
+            (1, 2),
+        ]
 
 
 def test_upload_removes_client_path_from_filename(api):
@@ -121,9 +125,7 @@ def test_list_and_detail_endpoints(api):
 )
 def test_upload_rejects_invalid_files(api, filename, content_type, data, message):
     client, session_factory = api
-    response = client.post(
-        "/contracts", files={"file": (filename, data, content_type)}
-    )
+    response = client.post("/contracts", files={"file": (filename, data, content_type)})
     assert response.status_code == 422
     assert message in response.json()["detail"]
     with session_factory() as session:

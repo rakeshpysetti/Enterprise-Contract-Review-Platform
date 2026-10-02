@@ -51,9 +51,13 @@ def validate_pdf(*, filename: str | None, content_type: str | None, data: bytes)
         or Path(safe_filename).suffix.lower() != ".pdf"
     ):
         raise InvalidPDFError("A filename ending in .pdf is required")
-    media_type = content_type.partition(";")[0].strip().lower() if content_type else None
+    media_type = (
+        content_type.partition(";")[0].strip().lower() if content_type else None
+    )
     if media_type not in PDF_MEDIA_TYPES:
-        raise InvalidPDFError("The uploaded file must use the application/pdf media type")
+        raise InvalidPDFError(
+            "The uploaded file must use the application/pdf media type"
+        )
     if not data:
         raise InvalidPDFError("The uploaded PDF is empty")
     if not data.startswith(b"%PDF-"):

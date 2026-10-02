@@ -2,8 +2,6 @@
 
 import uuid
 
-from sqlalchemy.orm import Session
-
 from app.db.models import RiskLevel
 from app.db.repositories import ContractRepository
 from app.schemas.analysis import (
@@ -12,6 +10,7 @@ from app.schemas.analysis import (
     ContractSummaryClause,
     ContractSummaryResponse,
 )
+from sqlalchemy.orm import Session
 
 _RISK_ORDER = {
     RiskLevel.low: 0,

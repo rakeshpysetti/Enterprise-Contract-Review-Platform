@@ -4,12 +4,11 @@ import re
 import time
 import uuid
 
+from app.api.errors import error_response
+from app.core.logging import get_logger
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import Response
-
-from app.api.errors import error_response
-from app.core.logging import get_logger
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 

@@ -1,13 +1,10 @@
 from datetime import date
 
 import pytest
-from sqlalchemy import create_engine, event, select
-from sqlalchemy.orm import Session
-
 from app.db.database import Base, get_session_factory
 from app.db.models import (
-    Contract,
     Clause,
+    Contract,
     ContractChunk,
     ContractStatus,
     Obligation,
@@ -25,6 +22,8 @@ from app.db.repositories import (
 from app.schemas.contract import ContractChunkRead, ContractRead
 from app.schemas.obligation import ObligationRead
 from app.schemas.risk import RiskCreate, RiskRead
+from sqlalchemy import create_engine, event, select
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture
@@ -138,7 +137,10 @@ def test_repositories_filter_related_records(session: Session):
     )
     session.commit()
 
-    assert [item.chunk_index for item in ContractChunkRepository(session).list_for_contract(first.id)] == [0, 1]
+    assert [
+        item.chunk_index
+        for item in ContractChunkRepository(session).list_for_contract(first.id)
+    ] == [0, 1]
     assert len(ObligationRepository(session).list_for_contract(first.id)) == 1
     assert len(ClauseRepository(session).list_for_contract(first.id)) == 1
     assert len(RiskRepository(session).list_for_contract(first.id)) == 1

@@ -2,10 +2,6 @@ from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
-
 from app.core.config import Settings
 from app.db.database import Base, get_db, get_session_factory
 from app.db.models import (
@@ -17,6 +13,9 @@ from app.db.models import (
     RiskLevel,
 )
 from app.main import create_app
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 
 @pytest.fixture
@@ -151,12 +150,8 @@ def test_contract_listing_supports_type_and_party_filters(listing_api):
     assert ids(client.get("/contracts", params={"contract_type": "nda"})) == [
         str(nda_id)
     ]
-    assert ids(client.get("/contracts", params={"party": "ACME"})) == [
-        str(msa_id)
-    ]
-    assert ids(client.get("/contracts", params={"party": "hold"})) == [
-        str(nda_id)
-    ]
+    assert ids(client.get("/contracts", params={"party": "ACME"})) == [str(msa_id)]
+    assert ids(client.get("/contracts", params={"party": "hold"})) == [str(nda_id)]
 
 
 def test_contract_listing_supports_expiration_and_renewal_ranges(listing_api):
@@ -226,9 +221,7 @@ def test_risk_listing_is_scoped_and_filters_by_severity(listing_api):
     client, (msa_id, nda_id, _) = listing_api
 
     all_items = client.get(f"/contracts/{msa_id}/risks")
-    critical = client.get(
-        f"/contracts/{msa_id}/risks", params={"severity": "critical"}
-    )
+    critical = client.get(f"/contracts/{msa_id}/risks", params={"severity": "critical"})
 
     assert [item["category"] for item in all_items.json()] == [
         "Renewal",
@@ -270,8 +263,14 @@ def test_related_listings_report_missing_contract(listing_api, path):
 @pytest.mark.parametrize(
     ("path", "params"),
     [
-        ("/contracts", {"expiration_date_from": "2028-01-01", "expiration_date_to": "2027-01-01"}),
-        ("/contracts", {"renewal_date_from": "2028-01-01", "renewal_date_to": "2027-01-01"}),
+        (
+            "/contracts",
+            {"expiration_date_from": "2028-01-01", "expiration_date_to": "2027-01-01"},
+        ),
+        (
+            "/contracts",
+            {"renewal_date_from": "2028-01-01", "renewal_date_to": "2027-01-01"},
+        ),
         ("/contracts", {"contract_type": "   "}),
         ("/contracts", {"party": "   "}),
         ("/contracts/{id}/risks", {"severity": "urgent"}),

@@ -4,10 +4,6 @@ from uuid import uuid4
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
-
 from app.ai.rag.index import ContractVectorIndexStore
 from app.ai.rag.retriever import ContractRetriever
 from app.api.dependencies import get_contract_retriever
@@ -15,6 +11,9 @@ from app.core.config import Settings
 from app.db.database import Base, get_db, get_session_factory
 from app.db.models import Contract, ContractChunk
 from app.main import create_app
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 
 class DeterministicEmbeddings:
@@ -26,9 +25,10 @@ class DeterministicEmbeddings:
         for text in texts:
             vector = np.zeros(self.dimension, dtype=np.float32)
             for token in text.lower().split():
-                position = int.from_bytes(
-                    hashlib.sha256(token.encode()).digest()[:2], "big"
-                ) % self.dimension
+                position = (
+                    int.from_bytes(hashlib.sha256(token.encode()).digest()[:2], "big")
+                    % self.dimension
+                )
                 vector[position] += 1
             norm = np.linalg.norm(vector)
             if norm:
@@ -49,9 +49,7 @@ def search_api(tmp_path):
     with session_factory() as session:
         first = Contract(title="First", filename="first.pdf")
         first.chunks = [
-            ContractChunk(
-                chunk_index=0, page_number=4, content="payment invoice fees"
-            ),
+            ContractChunk(chunk_index=0, page_number=4, content="payment invoice fees"),
             ContractChunk(
                 chunk_index=1, page_number=9, content="termination notice period"
             ),
@@ -124,12 +122,13 @@ def test_search_top_k_and_contract_isolation(search_api):
 
 def test_search_reports_missing_and_empty_contracts(search_api):
     client, (_, _, empty_id), _ = search_api
-    assert client.post(
-        f"/contracts/{uuid4()}/search", json={"query": "payment"}
-    ).status_code == 404
-    response = client.post(
-        f"/contracts/{empty_id}/search", json={"query": "payment"}
+    assert (
+        client.post(
+            f"/contracts/{uuid4()}/search", json={"query": "payment"}
+        ).status_code
+        == 404
     )
+    response = client.post(f"/contracts/{empty_id}/search", json={"query": "payment"})
     assert response.status_code == 409
     assert "does not contain any chunks" in response.json()["detail"]
 
@@ -145,6 +144,4 @@ def test_search_reports_missing_and_empty_contracts(search_api):
 )
 def test_search_validates_request(search_api, payload):
     client, (first_id, _, _), _ = search_api
-    assert client.post(
-        f"/contracts/{first_id}/search", json=payload
-    ).status_code == 422
+    assert client.post(f"/contracts/{first_id}/search", json=payload).status_code == 422

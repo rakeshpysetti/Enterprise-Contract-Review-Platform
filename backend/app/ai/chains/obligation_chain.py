@@ -17,7 +17,9 @@ class ObligationExtractionChain:
         self.llm = llm
         self.prompt_template = prompt_path.read_text(encoding="utf-8")
         if "{{CONTRACT_TEXT}}" not in self.prompt_template:
-            raise ValueError("Obligation extraction prompt is missing its text placeholder")
+            raise ValueError(
+                "Obligation extraction prompt is missing its text placeholder"
+            )
 
     def run(self, chunks: list[ContractChunk]) -> ObligationExtraction:
         if not chunks:

@@ -1,23 +1,23 @@
 """FastAPI application entry point."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import install_exception_handlers
 from app.api.middleware import RequestContextMiddleware
 from app.api.routes.analysis import router as analysis_router
+from app.api.routes.contracts import router as contracts_router
 from app.api.routes.health import router as health_router
 from app.api.routes.qa import router as qa_router
 from app.api.routes.search import router as search_router
-from app.api.routes.contracts import router as contracts_router
 from app.core.config import Settings
 from app.core.logging import configure_logging
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
-async def lifespan(application: FastAPI):
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     yield
     llm_service = getattr(application.state, "llm_service", None)
     close = getattr(llm_service, "close", None)
@@ -28,9 +28,7 @@ async def lifespan(application: FastAPI):
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings if settings is not None else Settings()
     configure_logging()
-    application = FastAPI(
-        title=settings.app_name, version="0.1.0", lifespan=lifespan
-    )
+    application = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
     application.state.settings = settings
     install_exception_handlers(application)
     if settings.cors_origins:

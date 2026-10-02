@@ -2,8 +2,6 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
-
 from app.ai.rag.index import VectorIndexError
 from app.api.dependencies import ContractRetrieverDependency, DatabaseSession
 from app.schemas.analysis import (
@@ -15,6 +13,7 @@ from app.services.retrieval_service import (
     ContractHasNoChunksError,
     ContractNotFoundError,
 )
+from fastapi import APIRouter, HTTPException, status
 
 router = APIRouter(prefix="/contracts", tags=["search"])
 

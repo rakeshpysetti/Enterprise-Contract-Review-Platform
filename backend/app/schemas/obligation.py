@@ -1,9 +1,8 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from app.db.models import ObligationPriority
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExtractedObligation(BaseModel):

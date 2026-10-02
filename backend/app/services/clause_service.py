@@ -3,13 +3,12 @@
 import re
 import uuid
 
-from sqlalchemy.orm import Session
-
 from app.ai.chains.clause_chain import ClauseDetectionChain
 from app.db.models import Clause
 from app.db.repositories import ClauseRepository, ContractRepository
 from app.schemas.clause import ClauseDetection
 from app.services.llm_service import LLMService
+from sqlalchemy.orm import Session
 
 _WHITESPACE = re.compile(r"\s+")
 

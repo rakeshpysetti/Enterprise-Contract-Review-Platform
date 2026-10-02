@@ -131,6 +131,9 @@ With GNU Make installed and the virtual environment activated:
 | `make install` | Install the project and test dependencies |
 | `make run` | Start the local API with reload |
 | `make test` | Run pytest |
+| `make lint` | Check formatting and lint Python sources |
+| `make typecheck` | Type-check application code and scripts |
+| `make check` | Run linting, type checking, and tests |
 | `make evaluate` | Evaluate the reference prediction snapshot |
 | `make docker-config` | Validate Compose configuration |
 | `make docker-up` | Build and start development services |

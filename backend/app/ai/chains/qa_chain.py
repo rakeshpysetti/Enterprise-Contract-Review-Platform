@@ -17,9 +17,7 @@ class ContractQAChain:
         if any(placeholder not in self.prompt_template for placeholder in required):
             raise ValueError("Q&A prompt is missing a required placeholder")
 
-    def run(
-        self, question: str, matches: list[RetrievalResult]
-    ) -> GroundedAnswer:
+    def run(self, question: str, matches: list[RetrievalResult]) -> GroundedAnswer:
         if not question.strip():
             raise ValueError("A question is required")
         context = "\n\n".join(

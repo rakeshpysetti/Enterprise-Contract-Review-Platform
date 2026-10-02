@@ -1,12 +1,11 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
-
 from app.db.models import ContractStatus
 from app.schemas.clause import ClauseRead
 from app.schemas.obligation import ObligationRead
 from app.schemas.risk import RiskRead
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ContractParty(BaseModel):

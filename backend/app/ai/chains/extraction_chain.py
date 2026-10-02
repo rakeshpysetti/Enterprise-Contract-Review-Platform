@@ -6,7 +6,9 @@ from app.db.models import ContractChunk
 from app.schemas.contract import ContractMetadata
 from app.services.llm_service import LLMService
 
-PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "contract_extraction.txt"
+PROMPT_PATH = (
+    Path(__file__).resolve().parents[1] / "prompts" / "contract_extraction.txt"
+)
 
 
 class ContractExtractionChain:
@@ -14,7 +16,9 @@ class ContractExtractionChain:
         self.llm = llm
         self.prompt_template = prompt_path.read_text(encoding="utf-8")
         if "{{CONTRACT_TEXT}}" not in self.prompt_template:
-            raise ValueError("Contract extraction prompt is missing its text placeholder")
+            raise ValueError(
+                "Contract extraction prompt is missing its text placeholder"
+            )
 
     def run(self, chunks: list[ContractChunk]) -> ContractMetadata:
         if not chunks:

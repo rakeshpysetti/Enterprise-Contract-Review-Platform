@@ -1,7 +1,6 @@
-from fastapi.testclient import TestClient
-
 from app.core.config import Settings
 from app.main import create_app
+from fastapi.testclient import TestClient
 
 
 def test_health_without_external_services():

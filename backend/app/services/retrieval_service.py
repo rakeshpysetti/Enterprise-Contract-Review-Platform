@@ -3,8 +3,6 @@
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy.orm import Session
-
 from app.ai.rag.index import (
     ContractVectorIndexStore,
     VectorIndexError,
@@ -13,6 +11,7 @@ from app.ai.rag.index import (
 from app.db.models import ContractChunk
 from app.db.repositories import ContractChunkRepository, ContractRepository
 from app.services.embedding_service import EmbeddingProvider
+from sqlalchemy.orm import Session
 
 
 class ContractNotFoundError(LookupError):

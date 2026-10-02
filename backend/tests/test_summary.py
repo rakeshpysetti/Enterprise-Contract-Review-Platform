@@ -2,10 +2,6 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
-
 from app.core.config import Settings
 from app.db.database import Base, get_db, get_session_factory
 from app.db.models import (
@@ -18,6 +14,9 @@ from app.db.models import (
     RiskLevel,
 )
 from app.main import create_app
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 
 
 def make_risk(level: RiskLevel, page_number: int) -> Risk:

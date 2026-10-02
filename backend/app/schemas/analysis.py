@@ -1,11 +1,10 @@
 from datetime import date
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-from app.schemas.contract import ContractDetail
 from app.db.models import ContractStatus, RiskLevel
 from app.schemas.clause import ClauseType
+from app.schemas.contract import ContractDetail
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ContractSearchRequest(BaseModel):

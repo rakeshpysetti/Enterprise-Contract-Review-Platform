@@ -7,7 +7,10 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from scripts.evaluate_extraction import EvaluationDataError, evaluate_files  # noqa: E402
+from scripts.evaluate_extraction import (  # noqa: E402
+    EvaluationDataError,
+    evaluate_files,
+)
 
 DATASET = ROOT / "data/evaluation/contracts.json"
 EXPECTED = ROOT / "data/evaluation/expected_outputs.json"
@@ -29,11 +32,23 @@ def test_reference_evaluation_metrics() -> None:
 def test_cli_writes_reproducible_results(tmp_path: Path) -> None:
     output = tmp_path / "results.json"
     completed = subprocess.run(
-        [sys.executable, str(ROOT / "scripts/evaluate_extraction.py"), "--output", str(output)],
-        cwd=tmp_path, capture_output=True, check=True, text=True,
+        [
+            sys.executable,
+            str(ROOT / "scripts/evaluate_extraction.py"),
+            "--output",
+            str(output),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        check=True,
+        text=True,
     )
-    assert json.loads(completed.stdout) == json.loads(output.read_text(encoding="utf-8"))
-    assert json.loads(completed.stdout) == json.loads((ROOT / "data/evaluation/results.json").read_text(encoding="utf-8"))
+    assert json.loads(completed.stdout) == json.loads(
+        output.read_text(encoding="utf-8")
+    )
+    assert json.loads(completed.stdout) == json.loads(
+        (ROOT / "data/evaluation/results.json").read_text(encoding="utf-8")
+    )
 
 
 def test_rejects_gold_citation_outside_contract(tmp_path: Path) -> None:
@@ -45,7 +60,9 @@ def test_rejects_gold_citation_outside_contract(tmp_path: Path) -> None:
         evaluate_files(DATASET, invalid_expected, PREDICTIONS)
 
 
-def test_missing_nullable_values_and_no_answer_case_are_incorrect(tmp_path: Path) -> None:
+def test_missing_nullable_values_and_no_answer_case_are_incorrect(
+    tmp_path: Path,
+) -> None:
     predictions = json.loads(PREDICTIONS.read_text(encoding="utf-8"))
     predictions["contracts"][1]["metadata"].pop("renewal_date")
     predictions["contracts"][1]["qa"] = [predictions["contracts"][1]["qa"][0]]

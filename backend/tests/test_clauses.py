@@ -1,9 +1,6 @@
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel, ValidationError
-from sqlalchemy import create_engine
-
 from app.ai.chains.clause_chain import ClauseDetectionChain
 from app.db.database import Base, get_session_factory
 from app.db.models import Contract, ContractChunk
@@ -14,6 +11,8 @@ from app.services.clause_service import (
     InvalidClauseSourceError,
     detect_and_store_clauses,
 )
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import create_engine
 
 
 class MockStructuredLLM:
@@ -105,7 +104,9 @@ def test_detects_all_supported_clause_types_with_evidence(clause_session):
         llm=MockStructuredLLM(all_clause_results(contract)),
     )
 
-    assert [clause.clause_type for clause in result] == [item.value for item in ClauseType]
+    assert [clause.clause_type for clause in result] == [
+        item.value for item in ClauseType
+    ]
     assert all(clause.source_text for clause in result)
     assert [clause.page_number for clause in result] == list(range(1, 10))
     assert all(clause.confidence == pytest.approx(0.95) for clause in result)

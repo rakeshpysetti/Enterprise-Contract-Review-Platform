@@ -2,9 +2,6 @@
 
 import uuid
 
-from sqlalchemy import update
-from sqlalchemy.orm import Session
-
 from app.ai.chains.extraction_chain import ContractExtractionChain
 from app.ai.rag.retriever import ContractRetriever
 from app.db.models import Contract, ContractStatus, utc_now
@@ -14,6 +11,8 @@ from app.services.clause_service import detect_and_store_clauses
 from app.services.llm_service import LLMService
 from app.services.obligation_service import extract_and_store_obligations
 from app.services.risk_service import extract_and_store_risks
+from sqlalchemy import update
+from sqlalchemy.orm import Session
 
 
 class ContractNotFoundError(LookupError):

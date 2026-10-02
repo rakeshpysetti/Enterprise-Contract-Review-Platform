@@ -5,17 +5,20 @@ from uuid import UUID, uuid4
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
-from reportlab.pdfgen.canvas import Canvas
-from sqlalchemy import create_engine, select
-from sqlalchemy.pool import StaticPool
-
 from app.ai.rag.index import ContractVectorIndexStore
 from app.ai.rag.retriever import ContractRetriever
 from app.api.dependencies import get_contract_retriever, get_llm_service
 from app.core.config import Settings
 from app.db.database import Base, get_db, get_session_factory
-from app.db.models import Clause, Contract, ContractStatus, Obligation, Risk, RiskLevel
+from app.db.models import (
+    Clause,
+    Contract,
+    ContractStatus,
+    Obligation,
+    ObligationPriority,
+    Risk,
+    RiskLevel,
+)
 from app.main import create_app
 from app.schemas.clause import ClauseDetection, ClauseType, DetectedClause
 from app.schemas.contract import ContractMetadata, ContractParty
@@ -24,7 +27,10 @@ from app.schemas.obligation import (
     ObligationExtraction,
 )
 from app.schemas.risk import ExtractedRisk, RiskExtraction
-from app.db.models import ObligationPriority
+from fastapi.testclient import TestClient
+from reportlab.pdfgen.canvas import Canvas
+from sqlalchemy import create_engine, select
+from sqlalchemy.pool import StaticPool
 
 
 class CountingEmbeddings:
@@ -101,7 +107,9 @@ class StructuredAnalysisLLM:
                         description="Liability is stated as unlimited.",
                         level=RiskLevel.high,
                         why_it_matters="This may create substantial exposure.",
-                        recommendation="Consider reviewing an appropriate liability cap.",
+                        recommendation=(
+                            "Consider reviewing an appropriate liability cap."
+                        ),
                         source_text="Supplier liability is unlimited.",
                         page_number=1,
                         confidence=0.95,
@@ -192,9 +200,7 @@ def test_analysis_endpoint_runs_and_persists_complete_workflow(analysis_api):
         RiskExtraction,
     ]
     assert embeddings.calls == 1
-    assert (
-        retriever.index_store.root / uploaded["id"] / "index.faiss"
-    ).is_file()
+    assert (retriever.index_store.root / uploaded["id"] / "index.faiss").is_file()
 
     with session_factory() as session:
         contract_id = UUID(body["id"])
@@ -204,6 +210,28 @@ def test_analysis_endpoint_runs_and_persists_complete_workflow(analysis_api):
         assert session.scalar(select(Obligation)).contract_id == contract.id
         assert session.scalar(select(Clause)).contract_id == contract.id
         assert session.scalar(select(Risk)).contract_id == contract.id
+
+
+def test_uploaded_contract_flows_through_analysis_search_and_summary(analysis_api):
+    client, _, _, _, _, _ = analysis_api
+    uploaded = upload_contract(client)
+
+    analyzed = client.post(f"/contracts/{uploaded['id']}/analyze")
+    searched = client.post(
+        f"/contracts/{uploaded['id']}/search",
+        json={"query": "invoice payment", "top_k": 1},
+    )
+    summary = client.get(f"/contracts/{uploaded['id']}/summary")
+    detail = client.get(f"/contracts/{uploaded['id']}")
+
+    assert analyzed.status_code == 200
+    assert searched.status_code == 200
+    assert searched.json()["results"][0]["page_number"] == 1
+    assert summary.status_code == 200
+    assert summary.json()["obligation_count"] == 1
+    assert summary.json()["risk_counts"]["high"] == 1
+    assert detail.status_code == 200
+    assert detail.json()["status"] == ContractStatus.completed.value
 
 
 def test_completed_analysis_is_reused_without_duplicate_work(analysis_api):

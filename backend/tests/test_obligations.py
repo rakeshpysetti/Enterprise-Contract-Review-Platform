@@ -2,19 +2,22 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
-from pydantic import BaseModel, ValidationError
-from sqlalchemy import create_engine
-
 from app.ai.chains.obligation_chain import ObligationExtractionChain
 from app.db.database import Base, get_session_factory
 from app.db.models import Contract, ContractChunk, Obligation, ObligationPriority
 from app.db.repositories import ObligationRepository
-from app.schemas.obligation import ExtractedObligation, ObligationExtraction, ObligationRead
+from app.schemas.obligation import (
+    ExtractedObligation,
+    ObligationExtraction,
+    ObligationRead,
+)
 from app.services.obligation_service import (
     ContractNotFoundError,
     InvalidObligationSourceError,
     extract_and_store_obligations,
 )
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import create_engine
 
 
 class MockStructuredLLM:
@@ -191,7 +194,10 @@ def test_invalid_sources_do_not_replace_existing_data(
             llm=MockStructuredLLM(invalid),
         )
     obligation_session.expire_all()
-    assert ObligationRepository(obligation_session).list_for_contract(contract.id)[0].id == existing.id
+    assert (
+        ObligationRepository(obligation_session).list_for_contract(contract.id)[0].id
+        == existing.id
+    )
 
 
 def test_missing_and_empty_contracts_are_rejected(obligation_session):

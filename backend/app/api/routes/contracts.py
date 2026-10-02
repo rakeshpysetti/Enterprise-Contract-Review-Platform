@@ -4,8 +4,6 @@ from datetime import date
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile, status
-
 from app.api.dependencies import DatabaseSession
 from app.db.models import ObligationPriority, RiskLevel
 from app.db.repositories import (
@@ -14,8 +12,8 @@ from app.db.repositories import (
     ObligationRepository,
     RiskRepository,
 )
-from app.schemas.clause import ClauseRead
 from app.schemas.analysis import ContractSummaryResponse
+from app.schemas.clause import ClauseRead
 from app.schemas.contract import ContractDetail, ContractRead
 from app.schemas.obligation import ObligationRead
 from app.schemas.risk import RiskRead
@@ -27,7 +25,19 @@ from app.services.document_service import (
 )
 from app.services.summary_service import (
     ContractNotFoundError as SummaryContractNotFoundError,
+)
+from app.services.summary_service import (
     build_contract_summary,
+)
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
 )
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
@@ -82,9 +92,7 @@ def list_contracts(
     renewal_date_to: Annotated[date | None, Query()] = None,
     party: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
 ) -> list[ContractRead]:
-    _validate_date_range(
-        "expiration date", expiration_date_from, expiration_date_to
-    )
+    _validate_date_range("expiration date", expiration_date_from, expiration_date_to)
     _validate_date_range("renewal date", renewal_date_from, renewal_date_to)
     normalized_type = _normalize_filter("contract_type", contract_type)
     normalized_party = _normalize_filter("party", party)
@@ -182,9 +190,7 @@ def _require_contract(session: DatabaseSession, contract_id: UUID) -> None:
         )
 
 
-def _validate_date_range(
-    label: str, start: date | None, end: date | None
-) -> None:
+def _validate_date_range(label: str, start: date | None, end: date | None) -> None:
     if start is not None and end is not None and start > end:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

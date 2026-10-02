@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install run test evaluate docker-up docker-down docker-logs docker-config
+.PHONY: install run test lint typecheck check evaluate docker-up docker-down docker-logs docker-config
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -10,6 +10,15 @@ run:
 
 test:
 	$(PYTHON) -m pytest
+
+lint:
+	$(PYTHON) -m ruff format --check backend scripts
+	$(PYTHON) -m ruff check backend scripts
+
+typecheck:
+	$(PYTHON) -m mypy
+
+check: lint typecheck test
 
 evaluate:
 	$(PYTHON) scripts/evaluate_extraction.py --output data/evaluation/results.json

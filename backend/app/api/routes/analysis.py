@@ -2,8 +2,6 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
-
 from app.api.dependencies import (
     ContractRetrieverDependency,
     DatabaseSession,
@@ -17,6 +15,7 @@ from app.services.analysis_service import (
     ContractNotFoundError,
     run_contract_analysis,
 )
+from fastapi import APIRouter, HTTPException, status
 
 router = APIRouter(prefix="/contracts", tags=["analysis"])
 

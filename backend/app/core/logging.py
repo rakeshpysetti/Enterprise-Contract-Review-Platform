@@ -26,7 +26,9 @@ _SENSITIVE_KEYS = {
     "question",
     "source_text",
 }
-_URI_CREDENTIALS = re.compile(r"(?P<scheme>[a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/@]+@", re.I)
+_URI_CREDENTIALS = re.compile(
+    r"(?P<scheme>[a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/@]+@", re.I
+)
 _BEARER_TOKEN = re.compile(r"\bBearer\s+[^\s]+", re.I)
 _SECRET_ASSIGNMENT = re.compile(
     r"\b(password|secret|token|api[_-]?key)\s*([=:])\s*[^\s,;]+", re.I
@@ -46,7 +48,10 @@ def redact(value: object, *, key: str | None = None) -> object:
     if isinstance(value, str):
         return redact_text(value)
     if isinstance(value, Mapping):
-        return {str(item_key): redact(item, key=str(item_key)) for item_key, item in value.items()}
+        return {
+            str(item_key): redact(item, key=str(item_key))
+            for item_key, item in value.items()
+        }
     if isinstance(value, (list, tuple)):
         return [redact(item) for item in value]
     if value is None or isinstance(value, (bool, int, float)):

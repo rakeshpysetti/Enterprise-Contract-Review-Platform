@@ -3,13 +3,12 @@
 import re
 import uuid
 
-from sqlalchemy.orm import Session
-
 from app.ai.chains.risk_chain import RiskExtractionChain
 from app.db.models import Risk
 from app.db.repositories import ContractRepository, RiskRepository
 from app.schemas.risk import RiskExtraction
 from app.services.llm_service import LLMService
+from sqlalchemy.orm import Session
 
 _WHITESPACE = re.compile(r"\s+")
 

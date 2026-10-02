@@ -4,9 +4,6 @@ from collections.abc import Sequence
 
 import numpy as np
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session
-
 from app.ai.rag.index import ContractVectorIndexStore, VectorIndexError
 from app.ai.rag.retriever import ContractRetriever
 from app.core.config import Settings
@@ -17,6 +14,7 @@ from app.services.retrieval_service import (
     build_contract_index,
     retrieve_contract_chunks,
 )
+from sqlalchemy import create_engine
 
 
 class DeterministicEmbeddings:
@@ -45,8 +43,12 @@ def retrieval_context(tmp_path):
         first = Contract(title="First", filename="first.pdf")
         first.chunks = [
             ContractChunk(chunk_index=0, page_number=1, content="payment invoice fees"),
-            ContractChunk(chunk_index=1, page_number=2, content="termination notice period"),
-            ContractChunk(chunk_index=2, page_number=3, content="confidential information"),
+            ContractChunk(
+                chunk_index=1, page_number=2, content="termination notice period"
+            ),
+            ContractChunk(
+                chunk_index=2, page_number=3, content="confidential information"
+            ),
         ]
         second = Contract(title="Second", filename="second.pdf")
         second.chunks = [
