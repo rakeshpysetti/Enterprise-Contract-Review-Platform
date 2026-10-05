@@ -113,12 +113,25 @@ Requires Docker Engine or Docker Desktop with Compose v2. Create `.env` and set 
 
 ```sh
 docker compose config --quiet
-docker compose up --build -d
+docker compose up --build -d --wait
 docker compose logs -f api
 docker compose down
 ```
 
-FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. API startup waits for PostgreSQL health and for the Ollama container to start. PostgreSQL and Ollama use named volumes; `docker compose down` preserves them. Models are not downloaded automatically.
+FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. PostgreSQL is checked with `pg_isready`, Ollama is checked with `ollama list`, and the API readiness check queries both dependencies. The API starts after both services are healthy. PostgreSQL, Ollama, and FAISS indexes use named volumes; `docker compose down` preserves them. Models are not downloaded automatically.
+
+Use `/health` for process liveness and `/health/ready` for API-to-PostgreSQL and API-to-Ollama connectivity. The readiness endpoint returns HTTP 503 until both connections succeed.
+
+For the production Compose stack, set `POSTGRES_PASSWORD` and optionally `API_BIND_ADDRESS`, `API_PORT`, `CORS_ORIGINS`, and `OLLAMA_IMAGE`, then run:
+
+```sh
+docker compose -f docker-compose.prod.yml config --quiet
+docker compose -f docker-compose.prod.yml up --build -d --wait
+docker compose -f docker-compose.prod.yml ps
+curl http://127.0.0.1:8000/health/ready
+```
+
+The production stack omits source mounts and host ports for PostgreSQL and Ollama, runs the API filesystem read-only apart from its FAISS volume and `/tmp`, and restarts services unless stopped.
 
 The Dockerfile runs the API as a non-root user and includes a health check. `docker-compose.prod.yml` and GitHub workflows remain placeholders; this Compose configuration is for local development.
 
@@ -139,5 +152,8 @@ With GNU Make installed and the virtual environment activated:
 | `make docker-up` | Build and start development services |
 | `make docker-down` | Stop services while preserving volumes |
 | `make docker-logs` | Follow service logs |
+| `make docker-prod-config` | Validate production Compose configuration |
+| `make docker-prod-up` | Build and start the production stack and wait for health |
+| `make docker-prod-down` | Stop the production stack |
 
 On Windows without Make, use the equivalent Python and Docker commands above. Override the interpreter with `make test PYTHON=python3` when needed.

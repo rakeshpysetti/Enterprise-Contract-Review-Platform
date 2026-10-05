@@ -1,6 +1,7 @@
 services:
   api:
     build: .
+    init: true
     command: python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port 8000 --reload
     ports:
       - "127.0.0.1:8000:8000"
@@ -12,13 +13,25 @@ services:
       VECTOR_INDEX_DIR: /app/data/vector_indexes
     volumes:
       - ./backend:/app/backend:ro
-      - ./.env:/app/.env:ro
       - vector_index_data:/app/data/vector_indexes
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
     depends_on:
       postgres:
         condition: service_healthy
       ollama:
-        condition: service_started
+        condition: service_healthy
+    restart: unless-stopped
 
   postgres:
     image: postgres:16
@@ -31,10 +44,16 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB",
+        ]
       interval: 5s
       timeout: 5s
+      start_period: 10s
       retries: 10
+    restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
@@ -42,6 +61,13 @@ services:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 12
+    restart: unless-stopped
 
 volumes:
   postgres_data:

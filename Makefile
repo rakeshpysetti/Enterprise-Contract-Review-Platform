@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install run test lint typecheck check evaluate docker-up docker-down docker-logs docker-config
+.PHONY: install run test lint typecheck check evaluate docker-up docker-down docker-logs docker-config docker-prod-up docker-prod-down docker-prod-config
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -34,3 +34,12 @@ docker-logs:
 
 docker-config:
 	docker compose config --quiet
+
+docker-prod-up:
+	docker compose -f docker-compose.prod.yml up --build -d --wait
+
+docker-prod-down:
+	docker compose -f docker-compose.prod.yml down
+
+docker-prod-config:
+	docker compose -f docker-compose.prod.yml config --quiet
