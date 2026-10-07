@@ -6,7 +6,6 @@ from app.ai.rag.index import (
     ContractVectorIndexStore,
     VectorIndexError,
     VectorIndexMetadata,
-    VectorIndexNotFoundError,
 )
 from app.core.config import Settings
 from app.db.repositories import ContractChunkRepository, ContractRepository
@@ -14,10 +13,9 @@ from app.services.embedding_service import HuggingFaceEmbeddingService
 from app.services.retrieval_service import (
     ContractHasNoChunksError,
     ContractNotFoundError,
-    EmbeddingModelMismatchError,
     RetrievalResult,
-    StaleVectorIndexError,
     build_contract_index,
+    chunk_content_sha256,
     retrieve_contract_chunks,
 )
 from sqlalchemy.orm import Session
@@ -50,12 +48,14 @@ class ContractRetriever:
         if not chunks:
             raise ContractHasNoChunksError("Contract does not contain any chunks")
         expected_ids = {str(chunk.id) for chunk in chunks}
+        expected_content_sha256 = chunk_content_sha256(chunks)
         try:
             _, metadata = self.index_store.load(contract_id)
             if (
                 metadata.model_name == self.embeddings.model_name
                 and set(metadata.chunk_ids) == expected_ids
                 and metadata.vector_count == len(chunks)
+                and metadata.source_sha256 == expected_content_sha256
             ):
                 return metadata
         except VectorIndexError:
@@ -80,11 +80,7 @@ class ContractRetriever:
                 index_store=self.index_store,
                 top_k=result_count,
             )
-        except (
-            VectorIndexNotFoundError,
-            EmbeddingModelMismatchError,
-            StaleVectorIndexError,
-        ):
+        except VectorIndexError:
             self.index_contract(session, contract_id)
             return retrieve_contract_chunks(
                 session,

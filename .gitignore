@@ -32,3 +32,7 @@ data/sample_contracts/*
 data/processed/*
 !data/processed/.gitkeep
 data/vector_indexes/
+data/model_cache/
+
+# Local verification scratch space
+.pytest-tmp-check/

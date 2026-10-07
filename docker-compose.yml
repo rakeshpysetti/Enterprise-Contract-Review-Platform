@@ -11,9 +11,13 @@ services:
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3}
       VECTOR_INDEX_DIR: /app/data/vector_indexes
+      HF_HOME: /app/data/model_cache
     volumes:
       - ./backend:/app/backend:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./migrations:/app/migrations:ro
       - vector_index_data:/app/data/vector_indexes
+      - model_cache:/app/data/model_cache
     healthcheck:
       test:
         [
@@ -31,7 +35,22 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
+
+  migrate:
+    build: .
+    command: python -m alembic upgrade head
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contracts}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-contracts}
+    volumes:
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./migrations:/app/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
 
   postgres:
     image: postgres:16
@@ -73,3 +92,4 @@ volumes:
   postgres_data:
   ollama_data:
   vector_index_data:
+  model_cache:

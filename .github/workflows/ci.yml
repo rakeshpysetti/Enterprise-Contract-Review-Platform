@@ -19,11 +19,6 @@ jobs:
     name: Lint, type check, and tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      APP_ENV: test
-      DATABASE_URL: sqlite:///./ci.db
-      OLLAMA_BASE_URL: http://127.0.0.1:11434
-      OLLAMA_MODEL: ci-mocked-model
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -42,6 +37,11 @@ jobs:
 
       - name: Run type checks
         run: make typecheck
+
+      - name: Apply database migrations against SQLite
+        env:
+          DATABASE_URL: sqlite:///./ci.db
+        run: python -m alembic upgrade head
 
       - name: Run tests with mocked Ollama
         run: make test

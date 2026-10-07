@@ -1,5 +1,7 @@
 """Build and query contract-scoped semantic indexes."""
 
+import hashlib
+import json
 import uuid
 from dataclasses import dataclass
 
@@ -36,6 +38,14 @@ class RetrievalResult:
     score: float
 
 
+def chunk_content_sha256(chunks: list[ContractChunk]) -> str:
+    source = [{"chunk_id": str(chunk.id), "content": chunk.content} for chunk in chunks]
+    encoded = json.dumps(source, ensure_ascii=False, separators=(",", ":")).encode(
+        "utf-8"
+    )
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def build_contract_index(
     session: Session,
     *,
@@ -53,6 +63,7 @@ def build_contract_index(
         contract_id=contract_id,
         model_name=embeddings.model_name,
         chunk_ids=[chunk.id for chunk in chunks],
+        source_sha256=chunk_content_sha256(chunks),
         vectors=vectors,
     )
 
@@ -79,7 +90,9 @@ def retrieve_contract_chunks(
             "Query embedding model does not match the indexed model"
         )
     current_chunks = ContractChunkRepository(session).list_for_contract(contract_id)
-    if {str(chunk.id) for chunk in current_chunks} != set(metadata.chunk_ids):
+    if {str(chunk.id) for chunk in current_chunks} != set(
+        metadata.chunk_ids
+    ) or chunk_content_sha256(current_chunks) != metadata.source_sha256:
         raise StaleVectorIndexError("Contract chunks changed after indexing")
     chunks_by_id = ContractChunkRepository(session).get_many_for_contract(
         contract_id, [match.chunk_id for match in matches]

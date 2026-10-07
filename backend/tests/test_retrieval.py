@@ -159,6 +159,24 @@ def test_index_checksum_detects_tampering(retrieval_context):
         store.load(first.id)
 
 
+def test_content_edit_marks_vector_index_stale_and_rebuilds(retrieval_context):
+    session, first, _, store = retrieval_context
+    embeddings = DeterministicEmbeddings()
+    retriever = ContractRetriever(Settings(_env_file=None, vector_index_dir=store.root))
+    retriever.embeddings = embeddings
+    retriever.index_store = store
+    retriever.index_contract(session, first.id)
+
+    first.chunks[0].content = "updated payment invoice language"
+    session.flush()
+
+    results = retriever.retrieve(session, first.id, "updated payment", top_k=1)
+
+    assert results[0].chunk.content == "updated payment invoice language"
+    _, metadata = store.load(first.id)
+    assert metadata.source_sha256
+
+
 def test_retrieval_rejects_different_embedding_model(retrieval_context):
     session, first, _, store = retrieval_context
     embeddings = DeterministicEmbeddings()

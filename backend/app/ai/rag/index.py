@@ -29,6 +29,7 @@ class VectorIndexMetadata:
     dimension: int
     vector_count: int
     chunk_ids: list[str]
+    source_sha256: str
     metric: str
     normalized: bool
     created_at: str
@@ -54,6 +55,7 @@ class ContractVectorIndexStore:
         contract_id: uuid.UUID,
         model_name: str,
         chunk_ids: list[uuid.UUID],
+        source_sha256: str,
         vectors: NDArray[np.float32],
     ) -> VectorIndexMetadata:
         matrix = np.ascontiguousarray(vectors, dtype=np.float32)
@@ -89,6 +91,7 @@ class ContractVectorIndexStore:
             dimension=matrix.shape[1],
             vector_count=len(chunk_ids),
             chunk_ids=[str(chunk_id) for chunk_id in chunk_ids],
+            source_sha256=source_sha256,
             metric="cosine",
             normalized=True,
             created_at=datetime.now(timezone.utc).isoformat(),

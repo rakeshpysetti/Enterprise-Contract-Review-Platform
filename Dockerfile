@@ -8,9 +8,11 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY backend/app ./backend/app
+COPY alembic.ini ./
+COPY migrations ./migrations
 RUN pip install . \
     && useradd --create-home --uid 10001 appuser \
-    && mkdir -p /app/data/vector_indexes \
+    && mkdir -p /app/data/vector_indexes /app/data/model_cache \
     && chown -R appuser:appuser /app/data
 
 USER appuser

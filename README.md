@@ -15,7 +15,13 @@ source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
 
-Copy `.env.example` to `.env` (`cp .env.example .env` on Linux/macOS or `Copy-Item .env.example .env` in PowerShell). All example values are intentionally blank. The API can start without external services or a database URL.
+When using a PostgreSQL database outside Docker, apply the schema before using contract endpoints:
+
+```sh
+python -m alembic upgrade head
+```
+
+Copy `.env.example` to `.env` (`cp .env.example .env` on Linux/macOS or `Copy-Item .env.example .env` in PowerShell). Replace placeholder database credentials before using PostgreSQL. The API can start without external services or a database URL.
 
 ```sh
 python -m uvicorn app.main:app --app-dir backend --reload
@@ -133,7 +139,7 @@ curl http://127.0.0.1:8000/health/ready
 
 The production stack omits source mounts and host ports for PostgreSQL and Ollama, runs the API filesystem read-only apart from its FAISS volume and `/tmp`, and restarts services unless stopped.
 
-The Dockerfile runs the API as a non-root user and includes a health check. `docker-compose.prod.yml` and GitHub workflows remain placeholders; this Compose configuration is for local development.
+The Dockerfile runs the API as a non-root user and includes a liveness check. GitHub Actions runs linting, type checking, tests with mocked Ollama, and a Docker image build on pushes and pull requests to `main`. The production Compose stack is available in `docker-compose.prod.yml`.
 
 ## Make commands
 
@@ -143,9 +149,10 @@ With GNU Make installed and the virtual environment activated:
 | --- | --- |
 | `make install` | Install the project and test dependencies |
 | `make run` | Start the local API with reload |
+| `make db-upgrade` | Apply database schema migrations |
 | `make test` | Run pytest |
 | `make lint` | Check formatting and lint Python sources |
-| `make typecheck` | Type-check application code and scripts |
+| `make typecheck` | Type-check application code, scripts, and migrations |
 | `make check` | Run linting, type checking, and tests |
 | `make evaluate` | Evaluate the reference prediction snapshot |
 | `make docker-config` | Validate Compose configuration |

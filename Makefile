@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: install run test lint typecheck check evaluate docker-up docker-down docker-logs docker-config docker-prod-up docker-prod-down docker-prod-config
+.PHONY: install run db-upgrade test lint typecheck check evaluate docker-up docker-down docker-logs docker-config docker-prod-up docker-prod-down docker-prod-config
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -8,12 +8,15 @@ install:
 run:
 	$(PYTHON) -m uvicorn app.main:app --app-dir backend --reload
 
+db-upgrade:
+	$(PYTHON) -m alembic upgrade head
+
 test:
 	$(PYTHON) -m pytest
 
 lint:
-	$(PYTHON) -m ruff format --check backend scripts
-	$(PYTHON) -m ruff check backend scripts
+	$(PYTHON) -m ruff format --check backend scripts migrations
+	$(PYTHON) -m ruff check backend scripts migrations
 
 typecheck:
 	$(PYTHON) -m mypy
