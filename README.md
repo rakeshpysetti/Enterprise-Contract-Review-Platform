@@ -139,7 +139,7 @@ curl http://127.0.0.1:8000/health/ready
 
 The production stack omits source mounts and host ports for PostgreSQL and Ollama, runs the API filesystem read-only apart from its FAISS volume and `/tmp`, and restarts services unless stopped.
 
-The Dockerfile runs the API as a non-root user and includes a liveness check. GitHub Actions runs linting, type checking, tests with mocked Ollama, and a Docker image build on pushes and pull requests to `main`. The production Compose stack is available in `docker-compose.prod.yml`.
+The Dockerfile runs the API as a non-root user, installs CPU-only PyTorch to match the default CPU embedding device without bundling CUDA libraries, and includes a liveness check. GitHub Actions runs linting, type checking, tests with mocked Ollama, and a Docker image build on pushes and pull requests to `main`. The production Compose stack is available in `docker-compose.prod.yml`.
 
 ## Make commands
 

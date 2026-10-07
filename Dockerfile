@@ -10,7 +10,8 @@ COPY pyproject.toml ./
 COPY backend/app ./backend/app
 COPY alembic.ini ./
 COPY migrations ./migrations
-RUN pip install . \
+RUN pip install --extra-index-url https://download.pytorch.org/whl/cpu "torch==2.14.1+cpu" \
+    && pip install . \
     && useradd --create-home --uid 10001 appuser \
     && mkdir -p /app/data/vector_indexes /app/data/model_cache \
     && chown -R appuser:appuser /app/data
