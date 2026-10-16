@@ -3,12 +3,49 @@
 from typing import Annotated
 
 from app.ai.rag.retriever import ContractRetriever
+from app.api.auth import Principal, current_principal
 from app.db.database import get_db
+from app.db.models import Contract
 from app.services.llm_service import LLMService, OllamaLLMService
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-DatabaseSession = Annotated[Session, Depends(get_db)]
+RawDatabaseSession = Annotated[Session, Depends(get_db)]
+
+
+def get_tenant_db(
+    request: Request,
+    principal: Annotated[Principal, Depends(current_principal)],
+    session: RawDatabaseSession,
+) -> Session:
+    if (
+        request.method == "POST"
+        and not request.url.path.endswith(("/search", "/questions"))
+        and principal.role != "reviewer"
+    ):
+        raise HTTPException(403, "Reviewer access is required")
+    session.info["tenant_id"] = principal.tenant_id
+    contract_id = request.path_params.get("contract_id")
+    if contract_id is not None:
+        from uuid import UUID
+
+        try:
+            identifier = UUID(str(contract_id))
+        except ValueError:
+            return session  # Let FastAPI return its standard path validation error.
+        owned = session.scalar(
+            select(Contract.id).where(
+                Contract.id == identifier,
+                Contract.tenant_id == principal.tenant_id,
+            )
+        )
+        if owned is None:
+            raise HTTPException(404, "Contract not found")
+    return session
+
+
+DatabaseSession = Annotated[Session, Depends(get_tenant_db)]
 
 
 def get_contract_retriever(request: Request) -> ContractRetriever:

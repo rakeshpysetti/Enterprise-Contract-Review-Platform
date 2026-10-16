@@ -20,6 +20,8 @@ dependencies = [
     "faiss-cpu>=1.12,<2",
     "numpy>=1.26,<3",
     "httpx>=0.27,<1",
+    "langchain-core>=1.6,<2",
+    "llama-index-core>=0.14.25,<0.15",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +37,7 @@ where = ["backend"]
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["ai/prompts/*.txt"]
+app = ["ai/prompts/*.txt", "web/*.html", "web/*.css", "web/*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

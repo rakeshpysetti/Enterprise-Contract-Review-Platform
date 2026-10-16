@@ -1,5 +1,6 @@
 import hashlib
 from collections.abc import Sequence
+from datetime import timedelta
 from io import BytesIO
 from uuid import UUID, uuid4
 
@@ -18,6 +19,7 @@ from app.db.models import (
     ObligationPriority,
     Risk,
     RiskLevel,
+    utc_now,
 )
 from app.main import create_app
 from app.schemas.clause import ClauseDetection, ClauseType, DetectedClause
@@ -29,7 +31,7 @@ from app.schemas.obligation import (
 from app.schemas.risk import ExtractedRisk, RiskExtraction
 from fastapi.testclient import TestClient
 from reportlab.pdfgen.canvas import Canvas
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, update
 from sqlalchemy.pool import StaticPool
 
 
@@ -290,3 +292,141 @@ def test_analysis_rejects_missing_and_processing_contracts(analysis_api):
     response = client.post(f"/contracts/{contract_id}/analyze")
     assert response.status_code == 409
     assert "already in progress" in response.json()["detail"]
+
+
+def test_stale_analysis_can_be_recovered_and_retried(analysis_api):
+    client, factory, _, _, _, _ = analysis_api
+    uploaded = upload_contract(client)
+    identifier = UUID(uploaded["id"])
+    path = f"/contracts/{identifier}"
+    assert client.post(path + "/recover").status_code == 409
+    with factory() as session:
+        session.execute(
+            update(Contract)
+            .where(Contract.id == identifier)
+            .values(
+                status=ContractStatus.processing,
+                analysis_attempt_id=uuid4(),
+                updated_at=utc_now(),
+            )
+        )
+        session.commit()
+    assert client.post(path + "/recover").status_code == 409
+    with factory() as session:
+        session.execute(
+            update(Contract)
+            .where(Contract.id == identifier)
+            .values(
+                updated_at=utc_now() - timedelta(hours=2),
+            )
+        )
+        session.commit()
+    recovered = client.post(path + "/recover")
+    assert recovered.status_code == 200
+    assert recovered.json()["status"] == "failed"
+    assert client.post(path + "/recover").status_code == 409
+    completed = client.post(path + "/analyze")
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    with factory() as session:
+        assert session.get(Contract, identifier).analysis_attempt_id is None
+
+
+def test_superseded_worker_cannot_write_or_fail_new_attempt(analysis_api, monkeypatch):
+    from app.services.analysis_service import (
+        AnalysisExecutionError,
+        run_contract_analysis,
+    )
+
+    client, factory, _, llm, retriever, embeddings = analysis_api
+    uploaded = upload_contract(client)
+    identifier = UUID(uploaded["id"])
+    replacement_attempt = uuid4()
+    with factory() as session:
+        original_commit = session.commit
+        commits = 0
+
+        def commit_and_replace():
+            nonlocal commits
+            original_commit()
+            commits += 1
+            if commits == 1:
+                with factory() as replacement:
+                    replacement.execute(
+                        update(Contract)
+                        .where(Contract.id == identifier)
+                        .values(analysis_attempt_id=replacement_attempt)
+                    )
+                    replacement.commit()
+
+        monkeypatch.setattr(session, "commit", commit_and_replace)
+        with pytest.raises(AnalysisExecutionError):
+            run_contract_analysis(
+                session, contract_id=identifier, llm=llm, retriever=retriever
+            )
+    assert embeddings.calls == 0 and llm.calls == []
+    with factory() as session:
+        current = session.get(Contract, identifier)
+        assert current.status == ContractStatus.processing
+        assert current.analysis_attempt_id == replacement_attempt
+
+
+def test_live_evaluation_uses_uploaded_pdf_analysis_search_and_citations(
+    analysis_api,
+    monkeypatch,
+):
+    import re
+    import sys
+    from pathlib import Path
+
+    from app.api.routes import health
+    from app.schemas.analysis import GroundedAnswer
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from scripts.evaluate_live import generate_predictions
+
+    client, _, app, _, _, _ = analysis_api
+
+    class EvaluationLLM(StructuredAnalysisLLM):
+        def generate_structured(self, prompt, schema, *, system=None):
+            if schema is GroundedAnswer:
+                self.calls.append(schema)
+                return GroundedAnswer(
+                    answer="Within 30 days.",
+                    cited_chunk_ids=[UUID(re.search(r"\[CHUNK ([\w-]+)\]", prompt)[1])],
+                    confidence=0.9,
+                )
+            return super().generate_structured(prompt, schema, system=system)
+
+    llm = EvaluationLLM()
+    app.dependency_overrides[get_llm_service] = lambda: llm
+    monkeypatch.setattr(health, "ollama_is_ready", lambda *args: True)
+    fixture = {
+        "contract_id": "live-test",
+        "chunks": [
+            {
+                "chunk_id": "page-one",
+                "page_number": 1,
+                "text": (
+                    "Customer shall pay invoices within 30 days. "
+                    "Supplier liability is unlimited."
+                ),
+            }
+        ],
+    }
+    gold = {
+        "contracts": [
+            {
+                "contract_id": "live-test",
+                "qa": [{"question_id": "payment", "question": "When is payment due?"}],
+            }
+        ]
+    }
+    result = generate_predictions(
+        client, {"version": "test", "contracts": [fixture]}, gold
+    )
+    prediction = result["contracts"][0]
+    assert prediction["qa"][0]["cited_chunk_ids"] == ["page-one"]
+    assert len(prediction["obligations"]) == len(prediction["risks"]) == 1
+    assert prediction["metadata"]["title"] == "Master Services Agreement"
+    assert len(llm.calls) == 5  # Four analysis tasks and one actual question.

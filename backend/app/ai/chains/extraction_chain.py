@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from app.ai.chains.prompt_template import raw_prompt
 from app.db.models import ContractChunk
 from app.schemas.contract import ContractMetadata
 from app.services.llm_service import LLMService
@@ -19,12 +20,13 @@ class ContractExtractionChain:
             raise ValueError(
                 "Contract extraction prompt is missing its text placeholder"
             )
+        self.prompt = raw_prompt(self.prompt_template, "CONTRACT_TEXT")
 
     def run(self, chunks: list[ContractChunk]) -> ContractMetadata:
         if not chunks:
             raise ValueError("Contract does not contain text chunks")
         contract_text = format_contract_chunks(chunks)
-        prompt = self.prompt_template.replace("{{CONTRACT_TEXT}}", contract_text)
+        prompt = self.prompt.format(CONTRACT_TEXT=contract_text)
         return self.llm.generate_structured(prompt, ContractMetadata)
 
 

@@ -3,7 +3,7 @@
 from typing import Literal
 
 import httpx
-from app.api.dependencies import DatabaseSession
+from app.api.dependencies import RawDatabaseSession
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -53,7 +53,7 @@ async def health() -> HealthResponse:
     responses={status.HTTP_503_SERVICE_UNAVAILABLE: {"model": ReadinessResponse}},
 )
 def readiness(
-    request: Request, session: DatabaseSession
+    request: Request, session: RawDatabaseSession
 ) -> ReadinessResponse | JSONResponse:
     settings = request.app.state.settings
     services: dict[str, Literal["ok", "unavailable"]] = {

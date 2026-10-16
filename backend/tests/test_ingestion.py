@@ -6,6 +6,8 @@ from app.core.config import Settings
 from app.db.database import Base, get_db, get_session_factory
 from app.db.models import Contract, ContractChunk, ContractStatus
 from app.main import create_app
+from app.services import contract_service
+from app.services.extraction_service import ExtractedPage
 from fastapi.testclient import TestClient
 from reportlab.pdfgen.canvas import Canvas
 from sqlalchemy import create_engine, event, select
@@ -78,6 +80,25 @@ def test_upload_extracts_clean_text_and_preserves_page_numbers(api):
             (0, 1),
             (1, 2),
         ]
+
+
+def test_long_page_chunks_keep_page_number_and_sequential_indices(api, monkeypatch):
+    client, _ = api
+    long_text = " ".join(["Supplier shall notify the customer within 24 hours."] * 170)
+    monkeypatch.setattr(
+        contract_service,
+        "extract_pdf_pages",
+        lambda _data: [ExtractedPage(page_number=4, text=long_text)],
+    )
+    response = client.post(
+        "/contracts",
+        files={"file": ("long.pdf", make_pdf("Valid PDF"), "application/pdf")},
+    )
+    assert response.status_code == 201
+    chunks = response.json()["chunks"]
+    assert len(chunks) > 1
+    assert [chunk["chunk_index"] for chunk in chunks] == list(range(len(chunks)))
+    assert {chunk["page_number"] for chunk in chunks} == {4}
 
 
 def test_upload_removes_client_path_from_filename(api):

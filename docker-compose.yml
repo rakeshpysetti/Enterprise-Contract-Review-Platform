@@ -7,6 +7,9 @@ services:
       - "${API_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-8000}:8000"
     environment:
       APP_ENV: development
+      AUTH_ACCOUNTS: ${AUTH_ACCOUNTS:-[]}
+      REQUIRE_AUTH: ${REQUIRE_AUTH:-false}
+      ANALYSIS_RECOVERY_SECONDS: ${ANALYSIS_RECOVERY_SECONDS:-3600}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contracts}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-contracts}
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3}

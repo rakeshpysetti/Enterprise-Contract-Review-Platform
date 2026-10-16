@@ -2,7 +2,10 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Annotated
 
+from app.api.auth import Principal, current_principal
 from app.api.errors import install_exception_handlers
 from app.api.middleware import RequestContextMiddleware
 from app.api.routes.analysis import router as analysis_router
@@ -12,8 +15,10 @@ from app.api.routes.qa import router as qa_router
 from app.api.routes.search import router as search_router
 from app.core.config import Settings
 from app.core.logging import configure_logging
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 
 @asynccontextmanager
@@ -30,6 +35,38 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging()
     application = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
     application.state.settings = settings
+    web_directory = Path(__file__).parent / "web"
+    application.mount("/assets", StaticFiles(directory=web_directory), name="assets")
+
+    @application.get("/", include_in_schema=False)
+    def review_interface() -> FileResponse:
+        return FileResponse(
+            web_directory / "index.html",
+            headers={
+                "Content-Security-Policy": "default-src 'self'; script-src 'self'; "
+                "style-src 'self'; img-src 'self' data:; object-src 'none'; "
+                "base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+
+    @application.get("/auth/me", response_model=Principal, tags=["access"])
+    def identity(
+        principal: Annotated[Principal, Depends(current_principal)],
+    ) -> Principal:
+        return principal
+
+    @application.get("/system/info", tags=["access"])
+    def system_info(
+        principal: Annotated[Principal, Depends(current_principal)],
+    ) -> dict[str, str]:
+        return {
+            "version": application.version,
+            "ollama_model": settings.ollama_model,
+            "embedding_model": settings.embedding_model,
+        }
+
     install_exception_handlers(application)
     if settings.cors_origins:
         application.add_middleware(

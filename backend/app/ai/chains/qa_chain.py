@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from app.ai.chains.prompt_template import raw_prompt
 from app.schemas.analysis import GroundedAnswer
 from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalResult
@@ -16,6 +17,7 @@ class ContractQAChain:
         required = ("{{QUESTION}}", "{{CONTEXT}}")
         if any(placeholder not in self.prompt_template for placeholder in required):
             raise ValueError("Q&A prompt is missing a required placeholder")
+        self.prompt = raw_prompt(self.prompt_template, "QUESTION", "CONTEXT")
 
     def run(self, question: str, matches: list[RetrievalResult]) -> GroundedAnswer:
         if not question.strip():
@@ -27,11 +29,5 @@ class ContractQAChain:
             )
             for match in matches
         )
-        prefix, question_separator, remainder = self.prompt_template.partition(
-            "{{QUESTION}}"
-        )
-        middle, context_separator, suffix = remainder.partition("{{CONTEXT}}")
-        if not question_separator or not context_separator:
-            raise ValueError("Q&A prompt is missing a required placeholder")
-        prompt = prefix + question + middle + context + suffix
+        prompt = self.prompt.format(QUESTION=question, CONTEXT=context)
         return self.llm.generate_structured(prompt, GroundedAnswer)

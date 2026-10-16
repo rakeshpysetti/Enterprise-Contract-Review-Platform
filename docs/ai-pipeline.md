@@ -4,7 +4,7 @@ The pipeline keeps source text and page references attached to each result so re
 
 ## Analysis
 
-PDF ingestion extracts text page by page, cleans it, and creates page-aware chunks. Analysis sends the relevant contract text to Ollama using task-specific prompts in `backend/app/ai/prompts`. Structured responses are validated with Pydantic before persistence. The pipeline extracts contract metadata, obligations, recognized clause types, and potential risks. It validates quoted source passages and page numbers against stored chunks before replacing previous analysis results.
+PDF ingestion extracts text page by page and cleans it. LlamaIndex Core splits long pages into overlapping sentence chunks while retaining the page number; short pages remain intact. LangChain Core formats task-specific prompts from `backend/app/ai/prompts`, preserving source quotes and question text verbatim. Analysis sends the formatted prompts to Ollama. Structured responses are validated with Pydantic before persistence. The pipeline extracts contract metadata, obligations, recognized clause types, and potential risks. It validates quoted source passages and page numbers against stored chunks before replacing previous analysis results.
 
 Risk results use `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL` levels and include category, description, why it matters, recommended review action, evidence, page, and confidence. Prompt instructions treat contract text as untrusted input and require cautious review language; generated findings are not legal advice.
 

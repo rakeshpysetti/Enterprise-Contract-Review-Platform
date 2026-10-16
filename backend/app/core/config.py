@@ -4,8 +4,30 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from pydantic import Field, HttpUrl, SecretStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    SecretStr,
+    field_validator,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AccessAccount(BaseModel):
+    user_id: str = Field(min_length=1, max_length=128)
+    tenant_id: str = Field(min_length=1, max_length=128)
+    role: Literal["reader", "reviewer"] = "reader"
+    token_sha256: SecretStr
+
+    @field_validator("token_sha256")
+    @classmethod
+    def validate_digest(cls, value: SecretStr) -> SecretStr:
+        digest = value.get_secret_value()
+        if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise ValueError("token_sha256 must be a lowercase SHA-256 digest")
+        return value
 
 
 class Settings(BaseSettings):
@@ -21,6 +43,9 @@ class Settings(BaseSettings):
         min_length=1,
     )
     app_env: Literal["development", "test", "production"] = "development"
+    auth_accounts: list[AccessAccount] = Field(default_factory=list)
+    require_auth: bool = False
+    analysis_recovery_seconds: int = Field(default=3600, ge=60)
     database_url: SecretStr = SecretStr(
         "postgresql+psycopg://contracts:contracts@localhost:5432/contracts"
     )
@@ -67,4 +92,9 @@ class Settings(BaseSettings):
     def validate_cors_credentials(self) -> "Settings":
         if self.cors_allow_credentials and "*" in self.cors_origins:
             raise ValueError("Wildcard CORS origins cannot allow credentials")
+        digests = [
+            account.token_sha256.get_secret_value() for account in self.auth_accounts
+        ]
+        if len(digests) != len(set(digests)):
+            raise ValueError("Each access key must identify exactly one account")
         return self

@@ -46,6 +46,13 @@ class Repository(Generic[ModelT]):
 class ContractRepository(Repository[Contract]):
     model = Contract
 
+    def get(self, entity_id: uuid.UUID) -> Contract | None:
+        statement = select(Contract).where(Contract.id == entity_id)
+        tenant_id = self.session.info.get("tenant_id")
+        if tenant_id is not None:
+            statement = statement.where(Contract.tenant_id == tenant_id)
+        return self.session.scalar(statement)
+
     def get_with_details(self, contract_id: uuid.UUID) -> Contract | None:
         statement = (
             select(Contract)
@@ -57,6 +64,9 @@ class ContractRepository(Repository[Contract]):
                 selectinload(Contract.risks),
             )
         )
+        tenant_id = self.session.info.get("tenant_id")
+        if tenant_id is not None:
+            statement = statement.where(Contract.tenant_id == tenant_id)
         return self.session.scalar(statement)
 
     def list(
@@ -72,6 +82,9 @@ class ContractRepository(Repository[Contract]):
         party: str | None = None,
     ) -> list[Contract]:
         statement = select(Contract)
+        tenant_id = self.session.info.get("tenant_id")
+        if tenant_id is not None:
+            statement = statement.where(Contract.tenant_id == tenant_id)
         if contract_type is not None:
             statement = statement.where(
                 func.lower(Contract.contract_type) == contract_type.casefold()

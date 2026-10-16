@@ -49,6 +49,10 @@ class Contract(Base):
     __tablename__ = "contracts"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[str] = mapped_column(
+        String(128), default="legacy", server_default="legacy", index=True
+    )
+    analysis_attempt_id: Mapped[uuid.UUID | None] = mapped_column()
     title: Mapped[str] = mapped_column(String(255), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     status: Mapped[ContractStatus] = mapped_column(

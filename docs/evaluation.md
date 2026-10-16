@@ -33,3 +33,21 @@ The prediction file must contain every dataset `contract_id` and follow the coll
 | Citation recall | 100.00% |
 
 These figures validate the evaluator against a deterministic fixture. They are not measurements of a live Ollama model or evidence of production quality. The dataset is too small and synthetic for model selection; expand it with independently reviewed, representative contracts before drawing product conclusions.
+
+## Live API evaluation
+
+`expanded_contracts.json` and `expanded_expected_outputs.json` include the original three contracts plus support, payment-amendment, and data-processing examples: six contracts, 20 page chunks, and 12 questions. They add response-versus-resolution distinctions, superseded deadlines, missing metadata, absent insurance/availability terms, and breach notification. These additional labels are provisional synthetic annotations, not independently reviewed legal ground truth. Cases with an empty risk list assert no labeled risk under this small fixture rubric; they do not establish absence of real-world risk.
+
+Start a configured stack, pull its Ollama model, set `CONTRACT_REVIEW_ACCESS_KEY` to a reviewer key for a dedicated evaluation tenant, and run:
+
+```sh
+python scripts/evaluate_live.py --output-dir data/evaluation/live_runs/local
+```
+
+The runner constructs real PDFs from fixture page text and sends them through the public API. It uses actual analysis results, verifies completed-result reuse and summary persistence, executes semantic search and grounded Q&A, and translates API chunk UUID citations back to fixture chunk IDs by source page. It saves `predictions.json` and `results.json`, with configured model names, timestamp, and dataset SHA-256. Service or schema failures exit unsuccessfully; saved reference predictions are never substituted. Uploaded evaluation contracts remain in the tenant. Results are written only after every fixture completes; use a fresh output directory per run to avoid confusing older reports with a failed attempt.
+
+Use `--dataset`, `--expected`, `--base-url`, and `--timeout` for another dataset or stack. Each fixture page must have a unique positive page number, and each page's text must fit on one generated PDF page. The gold file supplies question text but never enters extraction prompts; only the contract text and individual questions are sent to the model.
+
+The manual **Live stack verification** GitHub Actions workflow builds and runs the production Compose stack with real PostgreSQL, Ollama, and downloaded embeddings. It also verifies that recovery cannot bypass an active PostgreSQL row lock and succeeds after that transaction releases its lock. Its default small model keeps integration runs practical, but schema/evidence failures remain real failures. Model metrics are reported without an invented quality pass threshold. Run it with a deployment-sized model and independently reviewed contracts before a production quality decision.
+
+Exact-match answer and obligation metrics can penalize equivalent wording. Grounding metrics check labeled citation support rather than full semantic entailment. Broader representative data, human adjudication, and an agreed acceptance threshold are still needed for product-quality claims.

@@ -13,11 +13,31 @@ from app.services.analysis_service import (
     AnalysisExecutionError,
     AnalysisInProgressError,
     ContractNotFoundError,
+    recover_contract_analysis,
     run_contract_analysis,
 )
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 router = APIRouter(prefix="/contracts", tags=["analysis"])
+
+
+@router.post("/{contract_id}/recover", response_model=ContractDetail)
+def recover_analysis(
+    contract_id: UUID,
+    request: Request,
+    session: DatabaseSession,
+) -> ContractDetail:
+    try:
+        contract = recover_contract_analysis(
+            session,
+            contract_id=contract_id,
+            recovery_seconds=request.app.state.settings.analysis_recovery_seconds,
+        )
+    except ContractNotFoundError as error:
+        raise HTTPException(404, "Contract not found") from error
+    except AnalysisInProgressError as error:
+        raise HTTPException(409, str(error)) from error
+    return ContractDetail.model_validate(contract)
 
 
 @router.post("/{contract_id}/analyze", response_model=ContractAnalysisResponse)

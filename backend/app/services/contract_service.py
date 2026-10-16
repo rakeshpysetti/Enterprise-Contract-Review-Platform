@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.db.models import Contract, ContractChunk, ContractStatus
 from app.db.repositories import ContractRepository
+from app.services.chunking_service import split_page_text
 from app.services.document_service import InvalidPDFError, validate_pdf
 from app.services.extraction_service import extract_pdf_pages
 from sqlalchemy.orm import Session
@@ -29,17 +30,23 @@ def ingest_contract(
     if not contract_title:
         raise InvalidPDFError("A contract title is required")
 
+    page_chunks = [
+        (page.page_number, chunk)
+        for page in extracted_pages
+        for chunk in split_page_text(page.text)
+    ]
     contract = Contract(
+        tenant_id=session.info.get("tenant_id", "legacy"),
         title=contract_title[:255],
         filename=safe_filename,
         status=ContractStatus.pending,
         chunks=[
             ContractChunk(
-                chunk_index=page.page_number - 1,
-                page_number=page.page_number,
-                content=page.text,
+                chunk_index=index,
+                page_number=page_number,
+                content=chunk,
             )
-            for page in extracted_pages
+            for index, (page_number, chunk) in enumerate(page_chunks)
         ],
     )
     ContractRepository(session).add(contract)

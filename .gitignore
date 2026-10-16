@@ -33,6 +33,7 @@ data/processed/*
 !data/processed/.gitkeep
 data/vector_indexes/
 data/model_cache/
+data/evaluation/live_runs/
 
 # Local verification scratch space
 .pytest-tmp-check/

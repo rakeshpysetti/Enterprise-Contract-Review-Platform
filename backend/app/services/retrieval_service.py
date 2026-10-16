@@ -81,6 +81,9 @@ def retrieve_contract_chunks(
         raise ValueError("A retrieval query is required")
     if ContractRepository(session).get(contract_id) is None:
         raise ContractNotFoundError(f"Contract {contract_id} was not found")
+    current_chunks = ContractChunkRepository(session).list_for_contract(contract_id)
+    if not current_chunks:
+        raise ContractHasNoChunksError("Contract does not contain any chunks")
     query_vector = embeddings.encode([query])[0]
     matches, metadata = index_store.search(
         contract_id=contract_id, query_vector=query_vector, top_k=top_k
@@ -89,7 +92,6 @@ def retrieve_contract_chunks(
         raise EmbeddingModelMismatchError(
             "Query embedding model does not match the indexed model"
         )
-    current_chunks = ContractChunkRepository(session).list_for_contract(contract_id)
     if {str(chunk.id) for chunk in current_chunks} != set(
         metadata.chunk_ids
     ) or chunk_content_sha256(current_chunks) != metadata.source_sha256:

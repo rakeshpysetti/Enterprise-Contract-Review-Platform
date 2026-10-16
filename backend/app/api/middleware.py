@@ -66,6 +66,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         duration_ms = round((time.perf_counter() - started) * 1000, 3)
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Correlation-ID"] = correlation_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path.startswith(("/contracts", "/auth/", "/system/")):
+            response.headers["Cache-Control"] = "no-store"
         logger.info(
             "request_completed",
             extra={
