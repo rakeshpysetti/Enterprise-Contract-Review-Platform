@@ -11,10 +11,16 @@ services:
       AUTH_ACCOUNTS: ${AUTH_ACCOUNTS:-[]}
       REQUIRE_AUTH: "true"
       ANALYSIS_RECOVERY_SECONDS: ${ANALYSIS_RECOVERY_SECONDS:-3600}
+      MAX_PDF_SIZE_BYTES: ${MAX_PDF_SIZE_BYTES:-26214400}
+      MAX_REQUEST_BODY_BYTES: ${MAX_REQUEST_BODY_BYTES:-65536}
+      MAX_PDF_PAGES: ${MAX_PDF_PAGES:-200}
+      MAX_CONTRACT_TEXT_CHARS: ${MAX_CONTRACT_TEXT_CHARS:-16000}
+      MAX_CONCURRENT_MODEL_REQUESTS: ${MAX_CONCURRENT_MODEL_REQUESTS:-1}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contracts}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-contracts}
       OLLAMA_BASE_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-gemma3}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-120}
+      OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       VECTOR_INDEX_DIR: /app/data/vector_indexes
       HF_HOME: /app/data/model_cache
       CORS_ORIGINS: ${CORS_ORIGINS:-[]}
@@ -67,7 +73,7 @@ services:
       - no-new-privileges:true
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-contracts}
       POSTGRES_USER: ${POSTGRES_USER:-contracts}
@@ -89,7 +95,7 @@ services:
       - no-new-privileges:true
 
   ollama:
-    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    image: ${OLLAMA_IMAGE:-ollama/ollama@sha256:1bef639749741b375e9a1eb2c1346fb57ce52f5432de1f74846e44ccc18e1687}
     volumes:
       - ollama_data:/root/.ollama
     healthcheck:

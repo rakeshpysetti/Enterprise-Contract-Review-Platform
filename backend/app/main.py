@@ -3,11 +3,13 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from threading import BoundedSemaphore, Lock
 from typing import Annotated
 
 from app.api.auth import Principal, current_principal
 from app.api.errors import install_exception_handlers
 from app.api.middleware import RequestContextMiddleware
+from app.api.request_limits import RequestBodyLimitMiddleware
 from app.api.routes.analysis import router as analysis_router
 from app.api.routes.contracts import router as contracts_router
 from app.api.routes.health import router as health_router
@@ -35,6 +37,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     configure_logging()
     application = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
     application.state.settings = settings
+    application.state.model_capacity = BoundedSemaphore(
+        settings.max_concurrent_model_requests
+    )
+    application.state.llm_initialization_lock = Lock()
     web_directory = Path(__file__).parent / "web"
     application.mount("/assets", StaticFiles(directory=web_directory), name="assets")
 
@@ -68,6 +74,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     install_exception_handlers(application)
+    application.add_middleware(
+        RequestBodyLimitMiddleware,
+        max_pdf_size_bytes=settings.max_pdf_size_bytes,
+        max_request_body_bytes=settings.max_request_body_bytes,
+    )
     if settings.cors_origins:
         application.add_middleware(
             CORSMiddleware,

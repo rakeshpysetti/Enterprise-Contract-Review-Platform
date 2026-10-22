@@ -55,13 +55,18 @@ class Settings(BaseSettings):
     ollama_max_retries: int = Field(default=2, ge=0, le=10)
     ollama_retry_backoff_seconds: float = Field(default=0.5, ge=0, le=60)
     ollama_temperature: float = Field(default=0.0, ge=0, le=2)
+    ollama_num_ctx: int = Field(default=8192, ge=2048, le=131072)
+    max_concurrent_model_requests: int = Field(default=1, ge=1, le=8)
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_device: str = "cpu"
     vector_index_dir: Path = Path("data/vector_indexes")
-    retrieval_top_k: int = Field(default=5, ge=1, le=100)
+    retrieval_top_k: int = Field(default=5, ge=1, le=10)
     upload_dir: Path = Path("data/sample_contracts")
     processed_dir: Path = Path("data/processed")
     max_pdf_size_bytes: int = Field(default=25 * 1024 * 1024, gt=0)
+    max_request_body_bytes: int = Field(default=64 * 1024, ge=1024)
+    max_pdf_pages: int = Field(default=200, ge=1)
+    max_contract_text_chars: int = Field(default=16000, ge=1)
     cors_origins: list[str] = Field(default_factory=list)
     cors_allow_credentials: bool = False
 
@@ -92,6 +97,17 @@ class Settings(BaseSettings):
     def validate_cors_credentials(self) -> "Settings":
         if self.cors_allow_credentials and "*" in self.cors_origins:
             raise ValueError("Wildcard CORS origins cannot allow credentials")
+        if self.app_env == "production":
+            if "*" in self.cors_origins:
+                raise ValueError("Production CORS origins must be explicit")
+            for origin in self.cors_origins:
+                parsed = urlsplit(origin)
+                if parsed.scheme != "https" and parsed.hostname not in {
+                    "localhost",
+                    "127.0.0.1",
+                    "::1",
+                }:
+                    raise ValueError("Production CORS origins must use HTTPS")
         digests = [
             account.token_sha256.get_secret_value() for account in self.auth_accounts
         ]

@@ -39,7 +39,7 @@ def test_text_generation_sends_configured_ollama_request():
             "prompt": "Summarize the contract",
             "system": "Be concise",
             "stream": False,
-            "options": {"temperature": 0.1},
+            "options": {"temperature": 0.1, "num_ctx": 8192},
         }
         return httpx.Response(200, json={"response": "Summary", "done": True})
 

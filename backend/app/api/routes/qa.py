@@ -8,6 +8,7 @@ from app.api.dependencies import (
     DatabaseSession,
     LLMServiceDependency,
 )
+from app.core.logging import get_logger
 from app.schemas.analysis import ContractQuestionRequest, ContractQuestionResponse
 from app.services.llm_service import LLMServiceError
 from app.services.qa_service import InvalidAnswerCitationError, answer_contract_question
@@ -51,6 +52,10 @@ def ask_contract_question(
             detail="Contract search index is unavailable",
         ) from error
     except (LLMServiceError, InvalidAnswerCitationError) as error:
+        get_logger().warning(
+            "question_generation_failed",
+            extra={"contract_id": str(contract_id), "error_type": type(error).__name__},
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="A grounded contract answer could not be generated",

@@ -5,7 +5,7 @@ The FastAPI OpenAPI document is available at `/docs` while the service is runnin
 ## Health
 
 - `GET /health` reports process liveness and does not contact dependencies.
-- `GET /health/ready` checks PostgreSQL and Ollama and returns `503` until both are reachable.
+- `GET /health/ready` checks PostgreSQL and verifies the configured Ollama model is installed; it returns `503` until both are ready.
 
 ## Contracts
 

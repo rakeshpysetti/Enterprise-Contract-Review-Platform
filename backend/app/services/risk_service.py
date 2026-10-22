@@ -7,7 +7,7 @@ from app.ai.chains.risk_chain import RiskExtractionChain
 from app.db.models import Risk
 from app.db.repositories import ContractRepository, RiskRepository
 from app.schemas.risk import RiskExtraction
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMMalformedResponseError, LLMService
 from sqlalchemy.orm import Session
 
 _WHITESPACE = re.compile(r"\s+")
@@ -31,12 +31,19 @@ def extract_and_store_risks(
     if contract is None:
         raise ContractNotFoundError(f"Contract {contract_id} was not found")
 
-    extraction = RiskExtractionChain(llm).run(contract.chunks)
+    chain = RiskExtractionChain(llm)
     text_by_page: dict[int, list[str]] = {}
     for chunk in contract.chunks:
         if chunk.page_number is not None:
             text_by_page.setdefault(chunk.page_number, []).append(chunk.content)
-    _validate_sources(extraction, text_by_page)
+    for attempt in range(2):
+        try:
+            extraction = chain.run(contract.chunks)
+            _validate_sources(extraction, text_by_page)
+            break
+        except (LLMMalformedResponseError, InvalidRiskSourceError):
+            if attempt == 1:
+                raise
 
     risks = [
         Risk(

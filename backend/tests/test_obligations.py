@@ -135,6 +135,25 @@ def test_source_validation_supports_multiple_chunks_on_one_page(obligation_sessi
     assert created[0].page_number == 1
 
 
+def test_obligation_extraction_retries_one_unsupported_quote(obligation_session):
+    contract = make_contract(obligation_session)
+    invalid = extraction_result()
+    invalid.obligations[0].source_text = "A quote absent from the PDF"
+
+    class CorrectingLLM(MockStructuredLLM):
+        def generate_structured(self, prompt, schema, *, system=None):
+            self.calls.append((prompt, schema, system))
+            return invalid if len(self.calls) == 1 else extraction_result()
+
+    llm = CorrectingLLM(invalid)
+    created = extract_and_store_obligations(
+        obligation_session, contract_id=contract.id, llm=llm
+    )
+
+    assert len(llm.calls) == 2
+    assert created[0].source_text == extraction_result().obligations[0].source_text
+
+
 def test_reextraction_replaces_existing_obligations(obligation_session):
     contract = make_contract(obligation_session)
     old = Obligation(

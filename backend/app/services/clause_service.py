@@ -7,7 +7,7 @@ from app.ai.chains.clause_chain import ClauseDetectionChain
 from app.db.models import Clause
 from app.db.repositories import ClauseRepository, ContractRepository
 from app.schemas.clause import ClauseDetection
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMMalformedResponseError, LLMService
 from sqlalchemy.orm import Session
 
 _WHITESPACE = re.compile(r"\s+")
@@ -31,12 +31,19 @@ def detect_and_store_clauses(
     if contract is None:
         raise ContractNotFoundError(f"Contract {contract_id} was not found")
 
-    detection = ClauseDetectionChain(llm).run(contract.chunks)
+    chain = ClauseDetectionChain(llm)
     text_by_page: dict[int, list[str]] = {}
     for chunk in contract.chunks:
         if chunk.page_number is not None:
             text_by_page.setdefault(chunk.page_number, []).append(chunk.content)
-    _validate_sources(detection, text_by_page)
+    for attempt in range(2):
+        try:
+            detection = chain.run(contract.chunks)
+            _validate_sources(detection, text_by_page)
+            break
+        except (LLMMalformedResponseError, InvalidClauseSourceError):
+            if attempt == 1:
+                raise
     clauses = [
         Clause(
             contract_id=contract.id,

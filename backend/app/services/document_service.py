@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import SpooledTemporaryFile
 
-import fitz
+import pymupdf as fitz
 from fastapi import UploadFile
 
 PDF_MEDIA_TYPES = {"application/pdf", "application/x-pdf"}
@@ -42,7 +42,13 @@ async def read_upload_safely(
         await upload.close()
 
 
-def validate_pdf(*, filename: str | None, content_type: str | None, data: bytes) -> str:
+def validate_pdf(
+    *,
+    filename: str | None,
+    content_type: str | None,
+    data: bytes,
+    max_pages: int = 200,
+) -> str:
     safe_filename = Path(filename.replace("\\", "/")).name if filename else ""
     if (
         not safe_filename
@@ -69,6 +75,8 @@ def validate_pdf(*, filename: str | None, content_type: str | None, data: bytes)
                 raise InvalidPDFError("Password-protected PDFs are not supported")
             if document.page_count == 0:
                 raise InvalidPDFError("The PDF does not contain any pages")
+            if document.page_count > max_pages:
+                raise InvalidPDFError(f"The PDF exceeds the {max_pages}-page limit")
     except InvalidPDFError:
         raise
     except (fitz.FileDataError, RuntimeError, ValueError) as error:

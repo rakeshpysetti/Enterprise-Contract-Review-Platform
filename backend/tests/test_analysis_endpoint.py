@@ -430,3 +430,11 @@ def test_live_evaluation_uses_uploaded_pdf_analysis_search_and_citations(
     assert len(prediction["obligations"]) == len(prediction["risks"]) == 1
     assert prediction["metadata"]["title"] == "Master Services Agreement"
     assert len(llm.calls) == 5  # Four analysis tasks and one actual question.
+    resumed = generate_predictions(
+        client,
+        {"version": "test", "contracts": [fixture]},
+        gold,
+        completed_contracts=result["contracts"],
+    )
+    assert resumed == result
+    assert len(llm.calls) == 5

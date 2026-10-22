@@ -49,6 +49,7 @@ class OllamaLLMService:
         max_retries: int = 2,
         retry_backoff_seconds: float = 0.5,
         temperature: float = 0.0,
+        num_ctx: int = 8192,
         client: httpx.Client | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
@@ -62,12 +63,15 @@ class OllamaLLMService:
             raise ValueError("retry_backoff_seconds cannot be negative")
         if not 0 <= temperature <= 2:
             raise ValueError("temperature must be between 0 and 2")
+        if num_ctx < 2048:
+            raise ValueError("num_ctx must be at least 2048")
 
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.max_retries = max_retries
         self.retry_backoff_seconds = retry_backoff_seconds
         self.temperature = temperature
+        self.num_ctx = num_ctx
         self._sleep = sleep
         self._owns_client = client is None
         self._client = client or httpx.Client(timeout=timeout_seconds)
@@ -118,7 +122,7 @@ class OllamaLLMService:
             "model": self.model,
             "prompt": prompt,
             "stream": False,
-            "options": {"temperature": self.temperature},
+            "options": {"temperature": self.temperature, "num_ctx": self.num_ctx},
         }
         if system is not None:
             payload["system"] = system

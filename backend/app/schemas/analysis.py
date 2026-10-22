@@ -35,7 +35,7 @@ class ContractQuestionRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     question: str = Field(min_length=1, max_length=2000)
-    top_k: int | None = Field(default=None, ge=1, le=100)
+    top_k: int | None = Field(default=None, ge=1, le=10)
 
 
 class GroundedAnswer(BaseModel):
@@ -44,6 +44,22 @@ class GroundedAnswer(BaseModel):
     answer: str | None = Field(default=None, min_length=1)
     cited_chunk_ids: list[UUID] = Field(default_factory=list)
     confidence: float = Field(ge=0, le=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_literal_null_abstention(cls, value: object) -> object:
+        if not isinstance(value, dict):
+            return value
+        answer = value.get("answer")
+        if isinstance(answer, str) and answer.strip().casefold() in {
+            "null",
+            "none",
+            "",
+        }:
+            if value.get("cited_chunk_ids") == [] and value.get("confidence") == 0:
+                return {**value, "answer": None}
+            raise ValueError("A literal null answer cannot cite contract evidence")
+        return value
 
     @model_validator(mode="after")
     def validate_answer_citations(self) -> "GroundedAnswer":

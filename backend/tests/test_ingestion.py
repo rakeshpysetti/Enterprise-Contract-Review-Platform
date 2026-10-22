@@ -1,4 +1,6 @@
+from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+from threading import Event
 from uuid import uuid4
 
 import pytest
@@ -88,7 +90,7 @@ def test_long_page_chunks_keep_page_number_and_sequential_indices(api, monkeypat
     monkeypatch.setattr(
         contract_service,
         "extract_pdf_pages",
-        lambda _data: [ExtractedPage(page_number=4, text=long_text)],
+        lambda _data, **_kwargs: [ExtractedPage(page_number=4, text=long_text)],
     )
     response = client.post(
         "/contracts",
@@ -115,6 +117,64 @@ def test_upload_removes_client_path_from_filename(api):
     )
     assert response.status_code == 201
     assert response.json()["filename"] == "contract.pdf"
+
+
+def test_upload_rejects_too_many_pages_before_persisting(api):
+    client, factory = api
+    client.app.state.settings.max_pdf_pages = 1
+    response = client.post(
+        "/contracts",
+        files={"file": ("many.pdf", make_pdf("First", "Second"), "application/pdf")},
+    )
+    assert response.status_code == 422
+    assert "page limit" in response.json()["detail"]
+    with factory() as session:
+        assert session.scalar(select(Contract)) is None
+
+
+def test_upload_rejects_excess_extracted_text_before_persisting(api):
+    client, factory = api
+    client.app.state.settings.max_contract_text_chars = 10
+    response = client.post(
+        "/contracts",
+        files={"file": ("long.pdf", make_pdf("Long contract text"), "application/pdf")},
+    )
+    assert response.status_code == 422
+    assert "character limit" in response.json()["detail"]
+    with factory() as session:
+        assert session.scalar(select(Contract)) is None
+
+
+def test_pdf_processing_does_not_block_liveness(api, monkeypatch):
+    from app.api.routes import contracts as routes
+
+    client, _ = api
+    started = Event()
+    release = Event()
+    original = routes.ingest_contract
+
+    def blocked_ingestion(*args, **kwargs):
+        started.set()
+        if not release.wait(10):
+            raise RuntimeError("Test ingestion was not released")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(routes, "ingest_contract", blocked_ingestion)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        upload = executor.submit(
+            client.post,
+            "/contracts",
+            files={
+                "file": ("contract.pdf", make_pdf("Valid contract"), "application/pdf")
+            },
+        )
+        try:
+            assert started.wait(5)
+            health = executor.submit(client.get, "/health")
+            assert health.result(timeout=2).status_code == 200
+        finally:
+            release.set()
+        assert upload.result(timeout=5).status_code == 201
 
 
 def test_list_and_detail_endpoints(api):

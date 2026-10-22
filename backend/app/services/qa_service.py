@@ -8,7 +8,7 @@ from app.schemas.analysis import (
     ContractAnswerSource,
     ContractQuestionResponse,
 )
-from app.services.llm_service import LLMService
+from app.services.llm_service import LLMMalformedResponseError, LLMService
 from sqlalchemy.orm import Session
 
 
@@ -31,17 +31,26 @@ def answer_contract_question(
         question,
         top_k=top_k,
     )
-    generated = ContractQAChain(llm).run(question, matches)
+    chain = ContractQAChain(llm)
     matches_by_id = {match.chunk.id: match for match in matches}
-    invalid_ids = [
-        chunk_id
-        for chunk_id in generated.cited_chunk_ids
-        if chunk_id not in matches_by_id
-    ]
-    if invalid_ids:
-        raise InvalidAnswerCitationError(
-            "The generated answer cited context that was not retrieved"
-        )
+    for attempt in range(2):
+        try:
+            generated = chain.run(question, matches)
+        except LLMMalformedResponseError:
+            if attempt == 0:
+                continue
+            raise
+        invalid_ids = [
+            chunk_id
+            for chunk_id in generated.cited_chunk_ids
+            if chunk_id not in matches_by_id
+        ]
+        if not invalid_ids:
+            break
+        if attempt == 1:
+            raise InvalidAnswerCitationError(
+                "The generated answer cited context that was not retrieved"
+            )
 
     sources = [
         ContractAnswerSource(

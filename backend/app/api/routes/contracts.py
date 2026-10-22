@@ -39,6 +39,7 @@ from fastapi import (
     UploadFile,
     status,
 )
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 
@@ -50,7 +51,8 @@ async def upload_contract(
     file: Annotated[UploadFile, File(description="Contract PDF")],
     title: Annotated[str | None, Form(max_length=255)] = None,
 ) -> ContractDetail:
-    max_size = request.app.state.settings.max_pdf_size_bytes
+    settings = request.app.state.settings
+    max_size = settings.max_pdf_size_bytes
     try:
         data = await read_upload_safely(file, max_size_bytes=max_size)
     except UploadTooLargeError as error:
@@ -59,21 +61,29 @@ async def upload_contract(
             detail=str(error),
         ) from error
 
+    def persist_upload() -> ContractDetail:
+        try:
+            contract = ingest_contract(
+                session,
+                filename=file.filename,
+                content_type=file.content_type,
+                data=data,
+                title=title,
+                max_pages=settings.max_pdf_pages,
+                max_text_chars=settings.max_contract_text_chars,
+            )
+            session.commit()
+            stored = ContractRepository(session).get_with_details(contract.id)
+            if stored is None:  # pragma: no cover - defensive database guard
+                raise RuntimeError("Created contract could not be loaded")
+            return ContractDetail.model_validate(stored)
+        except InvalidPDFError:
+            session.rollback()
+            raise
+
     try:
-        contract = ingest_contract(
-            session,
-            filename=file.filename,
-            content_type=file.content_type,
-            data=data,
-            title=title,
-        )
-        session.commit()
-        stored = ContractRepository(session).get_with_details(contract.id)
-        if stored is None:  # pragma: no cover - defensive database guard
-            raise RuntimeError("Created contract could not be loaded")
-        return ContractDetail.model_validate(stored)
+        return await run_in_threadpool(persist_upload)
     except InvalidPDFError as error:
-        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(error),

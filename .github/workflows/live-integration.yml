@@ -39,12 +39,16 @@ jobs:
           PY
       - name: Validate production configuration
         run: docker compose -f docker-compose.prod.yml config --quiet
-      - name: Start PostgreSQL, Ollama, migrations, and API
-        run: docker compose -f docker-compose.prod.yml up --build -d --wait --wait-timeout 300
+      - name: Start PostgreSQL and Ollama
+        run: docker compose -f docker-compose.prod.yml up -d --wait --wait-timeout 300 postgres ollama
       - name: Pull the selected model
         run: docker compose -f docker-compose.prod.yml exec -T ollama ollama pull "$OLLAMA_MODEL"
+      - name: Apply migrations and start API
+        run: docker compose -f docker-compose.prod.yml up --build -d --wait --wait-timeout 300 api
       - name: Verify recovery under real PostgreSQL row locks
         run: docker compose -f docker-compose.prod.yml exec -T api python - < scripts/verify_postgres_recovery.py
+      - name: Verify PostgreSQL backup and isolated restore
+        run: python scripts/verify_postgres_backup.py
       - name: Verify live pipeline and record actual model metrics
         run: python scripts/evaluate_live.py --output-dir data/evaluation/live_runs/ci
       - name: Retain predictions and metrics

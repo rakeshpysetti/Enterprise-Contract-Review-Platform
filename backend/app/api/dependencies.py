@@ -1,5 +1,6 @@
 """Shared API dependencies."""
 
+from collections.abc import Generator
 from typing import Annotated
 
 from app.ai.rag.retriever import ContractRetriever
@@ -61,20 +62,30 @@ ContractRetrieverDependency = Annotated[
 ]
 
 
-def get_llm_service(request: Request) -> LLMService:
-    service = getattr(request.app.state, "llm_service", None)
-    if service is None:
-        settings = request.app.state.settings
-        service = OllamaLLMService(
-            base_url=str(settings.ollama_base_url),
-            model=settings.ollama_model,
-            timeout_seconds=settings.ollama_timeout_seconds,
-            max_retries=settings.ollama_max_retries,
-            retry_backoff_seconds=settings.ollama_retry_backoff_seconds,
-            temperature=settings.ollama_temperature,
+def get_llm_service(request: Request) -> Generator[LLMService, None, None]:
+    capacity = request.app.state.model_capacity
+    if not capacity.acquire(blocking=False):
+        raise HTTPException(
+            503, "Model capacity is busy; retry later", headers={"Retry-After": "30"}
         )
-        request.app.state.llm_service = service
-    return service
+    try:
+        with request.app.state.llm_initialization_lock:
+            service = getattr(request.app.state, "llm_service", None)
+            if service is None:
+                settings = request.app.state.settings
+                service = OllamaLLMService(
+                    base_url=str(settings.ollama_base_url),
+                    model=settings.ollama_model,
+                    timeout_seconds=settings.ollama_timeout_seconds,
+                    max_retries=settings.ollama_max_retries,
+                    retry_backoff_seconds=settings.ollama_retry_backoff_seconds,
+                    temperature=settings.ollama_temperature,
+                    num_ctx=settings.ollama_num_ctx,
+                )
+                request.app.state.llm_service = service
+        yield service
+    finally:
+        capacity.release()
 
 
 LLMServiceDependency = Annotated[LLMService, Depends(get_llm_service)]

@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import sys
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -45,6 +46,9 @@ def generate_predictions(
     client: httpx.Client,
     dataset: dict[str, Any],
     expected: dict[str, Any],
+    *,
+    completed_contracts: list[dict[str, Any]] | None = None,
+    on_completed: Callable[[list[dict[str, Any]]], None] | None = None,
 ) -> dict[str, Any]:
     def request(method: str, path: str, **kwargs: Any) -> Any:
         response = client.request(method, path, **kwargs)
@@ -56,8 +60,15 @@ def generate_predictions(
     gold = {item["contract_id"]: item for item in expected["contracts"]}
     if set(gold) != {item["contract_id"] for item in dataset["contracts"]}:
         raise ValueError("Dataset and expected contract IDs must match")
-    predictions = []
-    for fixture in dataset["contracts"]:
+    predictions = list(completed_contracts or [])
+    fixture_ids = [item["contract_id"] for item in dataset["contracts"]]
+    if [item["contract_id"] for item in predictions] != fixture_ids[: len(predictions)]:
+        raise ValueError("Completed predictions must be a dataset prefix")
+    for prior in predictions:
+        stored = request("GET", f"/contracts/{prior['api_contract_id']}")
+        if stored["status"] != "completed":
+            raise ValueError("A resumed contract is no longer completed")
+    for fixture in dataset["contracts"][len(predictions) :]:
         identifier = fixture["contract_id"]
         uploaded = request(
             "POST",
@@ -128,6 +139,9 @@ def generate_predictions(
                 "qa": qa,
             }
         )
+        if on_completed is not None:
+            on_completed(predictions)
+        print(f"Completed fixture {identifier}", flush=True)
     return {"version": dataset["version"], "contracts": predictions}
 
 
@@ -144,6 +158,7 @@ def main() -> int:
     )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--timeout", type=float, default=1800)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     if any(
         (args.output_dir / name).exists()
@@ -159,13 +174,50 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     dataset = json.loads(args.dataset.read_text(encoding="utf-8"))
     expected = json.loads(args.expected.read_text(encoding="utf-8"))
+    checkpoint_path = args.output_dir / "partial.json"
+    if checkpoint_path.exists() and not args.resume:
+        parser.error("Partial results exist; use --resume or a fresh output directory")
+    if args.resume and not checkpoint_path.exists():
+        parser.error("There are no partial results to resume")
     with httpx.Client(
         base_url=args.base_url, headers=headers, timeout=args.timeout
     ) as client:
         info_response = client.get("/system/info")
         info_response.raise_for_status()
         info = info_response.json()
-        predictions = generate_predictions(client, dataset, expected)
+        identity_response = client.get("/auth/me")
+        identity_response.raise_for_status()
+        identity = identity_response.json()
+        checkpoint_header = {
+            "system": info,
+            "identity": identity,
+            "dataset_sha256": hashlib.sha256(args.dataset.read_bytes()).hexdigest(),
+            "expected_sha256": hashlib.sha256(args.expected.read_bytes()).hexdigest(),
+        }
+        completed: list[dict[str, Any]] = []
+        if args.resume:
+            checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+            if any(
+                checkpoint.get(key) != value for key, value in checkpoint_header.items()
+            ):
+                parser.error("Partial results belong to a different run configuration")
+            completed = checkpoint["contracts"]
+
+        def save_partial(items: list[dict[str, Any]]) -> None:
+            temporary = checkpoint_path.with_suffix(".tmp")
+            temporary.write_text(
+                json.dumps({**checkpoint_header, "contracts": items}, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            temporary.replace(checkpoint_path)
+
+        predictions = generate_predictions(
+            client,
+            dataset,
+            expected,
+            completed_contracts=completed,
+            on_completed=save_partial,
+        )
     prediction_path = args.output_dir / "predictions.json"
     prediction_path.write_text(
         json.dumps(predictions, indent=2) + "\n", encoding="utf-8"

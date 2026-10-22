@@ -7,6 +7,7 @@ from app.api.dependencies import (
     DatabaseSession,
     LLMServiceDependency,
 )
+from app.core.logging import get_logger
 from app.schemas.analysis import ContractAnalysisResponse
 from app.schemas.contract import ContractDetail
 from app.services.analysis_service import (
@@ -63,6 +64,14 @@ def analyze_contract(
             status_code=status.HTTP_409_CONFLICT, detail=str(error)
         ) from error
     except AnalysisExecutionError as error:
+        cause = error.__cause__
+        get_logger().error(
+            "analysis_failed",
+            extra={
+                "contract_id": str(contract_id),
+                "error_type": type(cause).__name__ if cause else type(error).__name__,
+            },
+        )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Contract analysis failed",

@@ -30,3 +30,18 @@ def test_invalid_environment_is_rejected():
 def test_database_url_is_redacted():
     settings = Settings(_env_file=None, database_url="postgresql://example")
     assert "postgresql://example" not in repr(settings)
+
+
+@pytest.mark.parametrize("origin", ["*", "http://example.com"])
+def test_production_rejects_insecure_cors_origins(origin):
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, app_env="production", cors_origins=[origin])
+
+
+def test_production_accepts_https_and_local_cors_origins():
+    settings = Settings(
+        _env_file=None,
+        app_env="production",
+        cors_origins=["https://contracts.example.com", "http://localhost:3000"],
+    )
+    assert len(settings.cors_origins) == 2

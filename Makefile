@@ -1,4 +1,5 @@
 PYTHON ?= python
+OLLAMA_MODEL ?= gemma3
 
 .PHONY: install run db-upgrade test lint typecheck check evaluate docker-up docker-down docker-logs docker-config docker-prod-up docker-prod-down docker-prod-config
 
@@ -27,7 +28,9 @@ evaluate:
 	$(PYTHON) scripts/evaluate_extraction.py --output data/evaluation/results.json
 
 docker-up:
-	docker compose up --build -d
+	docker compose up -d --wait postgres ollama
+	docker compose exec -T ollama ollama pull $(OLLAMA_MODEL)
+	docker compose up --build -d --wait api
 
 docker-down:
 	docker compose down
@@ -39,7 +42,9 @@ docker-config:
 	docker compose config --quiet
 
 docker-prod-up:
-	docker compose -f docker-compose.prod.yml up --build -d --wait
+	docker compose -f docker-compose.prod.yml up -d --wait postgres ollama
+	docker compose -f docker-compose.prod.yml exec -T ollama ollama pull $(OLLAMA_MODEL)
+	docker compose -f docker-compose.prod.yml up --build -d --wait api
 
 docker-prod-down:
 	docker compose -f docker-compose.prod.yml down

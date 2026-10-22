@@ -30,15 +30,21 @@ def database_is_ready(session: Session) -> bool:
         return False
 
 
-def ollama_is_ready(base_url: str, timeout_seconds: float) -> bool:
+def ollama_is_ready(base_url: str, model: str, timeout_seconds: float) -> bool:
     try:
         response = httpx.get(
             f"{base_url.rstrip('/')}/api/tags",
             timeout=min(timeout_seconds, 5.0),
         )
         response.raise_for_status()
-        return True
-    except httpx.HTTPError:
+        models = response.json().get("models", [])
+        configured = model if ":" in model else f"{model}:latest"
+        return isinstance(models, list) and any(
+            isinstance(item, dict)
+            and (item.get("name") == configured or item.get("model") == configured)
+            for item in models
+        )
+    except (httpx.HTTPError, ValueError, AttributeError):
         return False
 
 
@@ -61,11 +67,15 @@ def readiness(
         "ollama": (
             "ok"
             if ollama_is_ready(
-                str(settings.ollama_base_url), settings.ollama_timeout_seconds
+                str(settings.ollama_base_url),
+                settings.ollama_model,
+                settings.ollama_timeout_seconds,
             )
             else "unavailable"
         ),
     }
+    if settings.app_env == "production" or settings.require_auth:
+        services["access"] = "ok" if settings.auth_accounts else "unavailable"
     ready = all(service == "ok" for service in services.values())
     payload = ReadinessResponse(
         status="ok" if ready else "unavailable",

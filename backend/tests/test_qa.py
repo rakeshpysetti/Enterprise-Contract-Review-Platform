@@ -44,6 +44,7 @@ class GroundedMockLLM:
         self.payment_chunk_id = payment_chunk_id
         self.prompts = []
         self.invalid_citation = False
+        self.invalid_citation_once = False
 
     def generate(self, prompt: str, *, system: str | None = None) -> str:
         raise AssertionError("Plain text generation should not be used")
@@ -52,7 +53,8 @@ class GroundedMockLLM:
         self.prompts.append(prompt)
         assert schema is GroundedAnswer
         assert system is None
-        if self.invalid_citation:
+        if self.invalid_citation or self.invalid_citation_once:
+            self.invalid_citation_once = False
             return GroundedAnswer(
                 answer="The invoice period is 30 days.",
                 cited_chunk_ids=[uuid4()],
@@ -211,6 +213,21 @@ def test_invented_model_citation_is_rejected(qa_api):
 
     assert response.status_code == 502
     assert "grounded contract answer" in response.json()["detail"]
+    assert len(llm.prompts) == 2
+
+
+def test_question_retries_one_invalid_citation(qa_api):
+    client, (first_id, _, _), _, _, llm = qa_api
+    llm.invalid_citation_once = True
+
+    response = client.post(
+        f"/contracts/{first_id}/questions",
+        json={"question": "What is the invoice payment period?"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["answered"] is True
+    assert len(llm.prompts) == 2
 
 
 def test_question_endpoint_reports_missing_and_empty_contracts(qa_api):
@@ -235,6 +252,7 @@ def test_question_endpoint_reports_missing_and_empty_contracts(qa_api):
         {"question": "   "},
         {"question": "Payment?", "top_k": 0},
         {"question": "Payment?", "top_k": 101},
+        {"question": "Payment?", "top_k": 11},
     ],
 )
 def test_question_endpoint_validates_requests(qa_api, payload):
@@ -255,3 +273,18 @@ def test_question_endpoint_validates_requests(qa_api, payload):
 def test_grounded_answer_schema_rejects_inconsistent_answers(payload):
     with pytest.raises(ValidationError):
         GroundedAnswer.model_validate(payload)
+
+
+def test_literal_null_without_citations_is_safe_abstention():
+    answer = GroundedAnswer.model_validate(
+        {"answer": "null", "cited_chunk_ids": [], "confidence": 0}
+    )
+    assert answer.answer is None
+    assert answer.cited_chunk_ids == []
+
+
+def test_literal_null_with_citation_is_still_rejected():
+    with pytest.raises(ValidationError):
+        GroundedAnswer.model_validate(
+            {"answer": "null", "cited_chunk_ids": [str(uuid4())], "confidence": 0}
+        )

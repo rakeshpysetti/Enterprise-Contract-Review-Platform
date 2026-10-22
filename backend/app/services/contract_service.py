@@ -17,11 +17,13 @@ def ingest_contract(
     content_type: str | None,
     data: bytes,
     title: str | None = None,
+    max_pages: int = 200,
+    max_text_chars: int = 16000,
 ) -> Contract:
     safe_filename = validate_pdf(
-        filename=filename, content_type=content_type, data=data
+        filename=filename, content_type=content_type, data=data, max_pages=max_pages
     )
-    pages = extract_pdf_pages(data)
+    pages = extract_pdf_pages(data, max_total_chars=max_text_chars)
     extracted_pages = [page for page in pages if page.text]
     if not extracted_pages:
         raise InvalidPDFError("The PDF does not contain extractable text")

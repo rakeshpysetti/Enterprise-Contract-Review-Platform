@@ -44,6 +44,7 @@ def readiness_client(monkeypatch):
     app.dependency_overrides[get_db] = override_database
     response = Mock()
     response.raise_for_status.return_value = None
+    response.json.return_value = {"models": [{"name": "gemma3:latest"}]}
     monkeypatch.setattr(health_routes.httpx, "get", Mock(return_value=response))
     with TestClient(app) as client:
         yield client
@@ -76,4 +77,50 @@ def test_readiness_reports_unavailable_ollama(readiness_client, monkeypatch):
     assert response.json() == {
         "status": "unavailable",
         "services": {"database": "ok", "ollama": "unavailable"},
+    }
+
+
+def test_readiness_requires_configured_model(readiness_client):
+    health_routes.httpx.get.return_value.json.return_value = {
+        "models": [{"name": "another-model:latest"}]
+    }
+
+    response = readiness_client.get("/health/ready")
+
+    assert response.status_code == 503
+    assert response.json()["services"]["ollama"] == "unavailable"
+
+
+def test_readiness_rejects_malformed_model_inventory(readiness_client):
+    health_routes.httpx.get.return_value.json.return_value = {"models": "bad"}
+
+    assert readiness_client.get("/health/ready").status_code == 503
+
+
+def test_production_readiness_requires_access_accounts(monkeypatch):
+    engine = create_engine(
+        "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
+    Base.metadata.create_all(engine)
+    app = create_app(Settings(_env_file=None, app_env="production"))
+    factory = get_session_factory(engine)
+
+    def database():
+        with factory() as session:
+            yield session
+
+    app.dependency_overrides[get_db] = database
+    response = Mock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {"models": [{"name": "gemma3:latest"}]}
+    monkeypatch.setattr(health_routes.httpx, "get", Mock(return_value=response))
+    with TestClient(app) as client:
+        result = client.get("/health/ready")
+    engine.dispose()
+
+    assert result.status_code == 503
+    assert result.json()["services"] == {
+        "database": "ok",
+        "ollama": "ok",
+        "access": "unavailable",
     }

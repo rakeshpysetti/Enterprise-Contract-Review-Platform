@@ -83,7 +83,7 @@ curl -X POST http://localhost:8000/contracts/CONTRACT_ID/questions \
   -d '{"question":"When are invoices due?","top_k":5}'
 ```
 
-Uploads are validated by extension, media type, PDF signature, and PyMuPDF parsing. Text is cleaned and stored with its original page number. LlamaIndex's sentence splitter keeps short pages intact and divides longer pages into bounded, overlapping chunks for embedding and retrieval. Password-protected, damaged, empty, textless, and oversized PDFs are rejected. Uploaded binaries are not retained.
+Uploads are validated by extension, media type, PDF signature, and PyMuPDF parsing. Text is cleaned and stored with its original page number. LlamaIndex's sentence splitter keeps short pages intact and divides longer pages into bounded, overlapping chunks for embedding and retrieval. Password-protected, damaged, empty, textless, and oversized PDFs are rejected. Uploads also reject documents above the configured page or extracted-text limits before persistence, so analysis input has a finite bound. Uploaded binaries are not retained.
 
 Contract listing supports `contract_type`, `party`, inclusive `expiration_date_from` and `expiration_date_to`, and inclusive `renewal_date_from` and `renewal_date_to` query filters. Party matching is case-insensitive against party names. Contract, obligation, risk, and clause listings support `offset` and `limit`. Obligation listings accept a `priority` filter, and risk listings accept a `severity` filter.
 
@@ -107,6 +107,7 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `OLLAMA_MAX_RETRIES` | `2` retries after the initial request |
 | `OLLAMA_RETRY_BACKOFF_SECONDS` | `0.5`, with exponential backoff |
 | `OLLAMA_TEMPERATURE` | `0.0`; accepts values from 0 to 2 |
+| `OLLAMA_NUM_CTX` | `8192`; Ollama context window for generation |
 | `EMBEDDING_MODEL` | `sentence-transformers/all-MiniLM-L6-v2` |
 | `EMBEDDING_DEVICE` | `cpu`; set to a supported accelerator when available |
 | `VECTOR_INDEX_DIR` | `data/vector_indexes` |
@@ -114,6 +115,10 @@ Environment variables override the repository-root `.env` file. Blank values use
 | `UPLOAD_DIR` | `data/sample_contracts` |
 | `PROCESSED_DIR` | `data/processed` |
 | `MAX_PDF_SIZE_BYTES` | `26214400` (25 MiB) |
+| `MAX_REQUEST_BODY_BYTES` | `65536`; JSON body limit and multipart overhead allowance; the upload request limit adds `MAX_PDF_SIZE_BYTES` |
+| `MAX_PDF_PAGES` | `200`; reject PDFs with more pages before text extraction |
+| `MAX_CONTRACT_TEXT_CHARS` | `16000`; reject PDFs with more cleaned extracted characters |
+| `MAX_CONCURRENT_MODEL_REQUESTS` | `1`; per-process model request limit; excess requests receive HTTP 503 with `Retry-After` |
 | `CORS_ORIGINS` | JSON array of allowed origins; empty disables cross-origin access |
 | `CORS_ALLOW_CREDENTIALS` | `false`; wildcard origins cannot enable credentials |
 | `POSTGRES_DB`, `POSTGRES_USER` | Compose defaults to `contracts` |
@@ -121,7 +126,9 @@ Environment variables override the repository-root `.env` file. Blank values use
 
 Keep `.env` out of Git. The application uses SQLAlchemy with the Psycopg driver. A database connection running inside Compose uses hostname `postgres`; one running on the host uses `localhost`.
 
-Every response includes `X-Request-ID` and `X-Correlation-ID`. Callers may supply either header using letters, digits, `.`, `_`, or `-`, up to 128 characters. API errors use a centralized JSON shape containing `detail` and an `error` object with a stable code and request identifiers. Access logs are structured JSON and contain route templates and timing metadata only; request bodies, query strings, uploaded filenames, contract text, authorization values, and secrets are excluded or redacted. Uploads are streamed through an automatically deleted spooled temporary file and rejected as soon as `MAX_PDF_SIZE_BYTES` is exceeded.
+Production CORS origins must be explicit and use HTTPS, except loopback origins for local tooling. See [production deployment and acceptance](docs/production.md) for release checks, operations, backups, and remaining launch gates.
+
+Every response includes `X-Request-ID` and `X-Correlation-ID`. Callers may supply either header using letters, digits, `.`, `_`, or `-`, up to 128 characters. API errors use a centralized JSON shape containing `detail` and an `error` object with a stable code and request identifiers. Access logs are structured JSON and contain route templates and timing metadata only; request bodies, query strings, uploaded filenames, contract text, authorization values, and secrets are excluded or redacted. Request bodies are bounded before multipart/JSON parsing, including streamed requests without `Content-Length`. The PDF file itself is checked against `MAX_PDF_SIZE_BYTES`. PDF extraction and database persistence run in a worker thread so they do not block the async request loop.
 
 The `LLMService` abstraction connects to Ollama through its non-streaming generation API. It supports plain text and Pydantic-validated structured JSON output, configured timeouts, retries for connection failures, HTTP 429 responses, and server errors, plus explicit errors for malformed model responses. LangChain Core templates assemble the five task prompts while preserving contract evidence verbatim. Packaged prompts drive contract metadata, obligation and risk extraction, and detection of termination, renewal, payment, confidentiality, indemnification, limitation of liability, SLA, data protection, and dispute resolution clauses. Risk extraction uses cautious review language and stores severity, category, why-it-matters context, recommended review action, exact source quote, page number, and confidence. Source quotes and page references are validated against the stored contract before prior results are replaced. Pull the configured model before use, for example `docker compose exec ollama ollama pull gemma3`. No model is downloaded automatically.
 
@@ -163,27 +170,33 @@ Requires Docker Engine or Docker Desktop with Compose v2. Create `.env` and set 
 
 ```sh
 docker compose config --quiet
-docker compose up --build -d --wait
+docker compose up -d --wait postgres ollama
+docker compose exec -T ollama ollama pull gemma3
+docker compose up --build -d --wait api
 docker compose logs -f api
 docker compose down
 ```
 
-FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. PostgreSQL is checked with `pg_isready`, Ollama is checked with `ollama list`, and the API readiness check queries both dependencies. The API starts after both services are healthy. PostgreSQL, Ollama, and FAISS indexes use named volumes; `docker compose down` preserves them. Models are not downloaded automatically.
+FastAPI listens on localhost:8000 with source reload, PostgreSQL on localhost:5432, and Ollama on localhost:11434. PostgreSQL is checked with `pg_isready`, Ollama is checked with `ollama list`, and the API readiness check queries both dependencies and requires the configured model. The API starts after both services are healthy. PostgreSQL, Ollama, and FAISS indexes use named volumes; `docker compose down` preserves them. Replace `gemma3` in the pull command if `OLLAMA_MODEL` differs. Models are not downloaded automatically by Compose.
 
-Use `/health` for process liveness and `/health/ready` for API-to-PostgreSQL and API-to-Ollama connectivity. The readiness endpoint returns HTTP 503 until both connections succeed.
+Use `/health` for process liveness and `/health/ready` for API-to-PostgreSQL connectivity and the configured Ollama model. In production, readiness also requires access accounts to be configured. It returns HTTP 503 until these requirements are met.
 
-For the production Compose stack, set `POSTGRES_PASSWORD` and optionally `API_BIND_ADDRESS`, `API_PORT`, `CORS_ORIGINS`, and `OLLAMA_IMAGE`, then run:
+For the production Compose stack, set `POSTGRES_PASSWORD` and `AUTH_ACCOUNTS`; optionally set `API_BIND_ADDRESS`, `API_PORT`, `CORS_ORIGINS`, `OLLAMA_IMAGE`, and `OLLAMA_MODEL`. Pull the same model named by `OLLAMA_MODEL` (the default is `gemma3`), then run:
 
 ```sh
 docker compose -f docker-compose.prod.yml config --quiet
-docker compose -f docker-compose.prod.yml up --build -d --wait
+docker compose -f docker-compose.prod.yml up -d --wait postgres ollama
+docker compose -f docker-compose.prod.yml exec -T ollama ollama pull gemma3
+docker compose -f docker-compose.prod.yml up --build -d --wait api
 docker compose -f docker-compose.prod.yml ps
 curl http://127.0.0.1:8000/health/ready
 ```
 
 The production stack omits source mounts and host ports for PostgreSQL and Ollama, runs the API filesystem read-only apart from its FAISS volume and `/tmp`, and restarts services unless stopped.
 
-The Dockerfile runs the API as a non-root user, installs CPU-only PyTorch to match the default CPU embedding device without bundling CUDA libraries, and includes a liveness check. GitHub Actions runs linting, type checking, tests with mocked Ollama, and a Docker image build on pushes and pull requests to `main`. The production Compose stack is available in `docker-compose.prod.yml`.
+The Dockerfile runs the API as a non-root user, installs CPU-only PyTorch to match the default CPU embedding device without bundling CUDA libraries, and includes a liveness check. GitHub Actions runs linting, type checking, tests with mocked Ollama, and a Docker image build on pushes and pull requests to `main`. The production Compose stack is available in `docker-compose.prod.yml`. The `make docker-up` and `make docker-prod-up` targets perform the same staged startup; pass `OLLAMA_MODEL=name:tag` to Make when overriding the model in `.env`.
+
+Docker builds use the tested CPython 3.12 Linux dependency snapshot in `requirements-linux.lock` and a pinned Python base image. The production PostgreSQL and Ollama images are also pinned by digest. Update these pins together with dependency, image-build, and live-stack checks; adding a dependency to `pyproject.toml` also requires updating the runtime lock. Windows development installs continue to use `pyproject.toml`.
 
 ## Make commands
 
