@@ -1,21 +1,30 @@
 # AI pipeline
 
-The pipeline keeps source text and page references attached to each result so reviewers can trace extracted information to the contract.
+Every extracted finding keeps its source text and page number. A reviewer should be able to move from a result back to the contract evidence without guessing where it came from.
 
-## Analysis
+## Ingestion and analysis
 
-PDF ingestion extracts text page by page and cleans it. LlamaIndex Core splits long pages into overlapping sentence chunks while retaining the page number; short pages remain intact. LangChain Core formats task-specific prompts from `backend/app/ai/prompts`, preserving source quotes and question text verbatim. Analysis sends the formatted prompts to Ollama. Structured responses are validated with Pydantic before persistence. The pipeline extracts contract metadata, obligations, recognized clause types, and potential risks. It validates quoted source passages and page numbers against stored chunks before replacing previous analysis results.
+PyMuPDF reads the PDF page by page. The service cleans the text and stores it in page-aware chunks. LlamaIndex splits long pages into overlapping sentence chunks while leaving short pages intact.
 
-Risk results use `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL` levels and include category, description, why it matters, recommended review action, evidence, page, and confidence. Prompt instructions treat contract text as untrusted input and require cautious review language; generated findings are not legal advice.
+Prompt templates live in `backend/app/ai/prompts`. LangChain formats them without changing quoted contract text or the user's question. Ollama returns structured JSON, and Pydantic validates the shape before the database is updated.
 
-## Retrieval and questions
+The analysis extracts:
 
-Sentence Transformers generates normalized embeddings for chunks, and a per-contract FAISS index returns cosine-similarity-ranked results. PostgreSQL remains the source of truth for chunk text and page numbers. A JSON manifest maps FAISS positions to chunk UUIDs and records the embedding model and a digest of the ordered chunk IDs and text. The retrieval service checks this metadata and rebuilds stale or invalid indexes.
+- contract type, parties, dates, governing law, and payment terms;
+- obligations and the parties responsible for them;
+- supported clause types, including termination, renewal, payment, confidentiality, indemnification, liability, SLA, data protection, and dispute resolution;
+- possible risks with severity, evidence, page number, confidence, and a suggested review action.
 
-Question answering retrieves evidence only from the selected contract. Ollama receives the question and bounded retrieved excerpts, and returns an answer with chunk citations. The service verifies citations against retrieved evidence and returns excerpts, pages, and confidence. If the contract does not support an answer, the service returns an explicit no-answer response.
+Before replacing saved results, the service checks each quoted passage and page number against the stored chunks. Model output is treated as a review aid, not legal advice.
 
-## Configuration and evaluation
+## Search and questions
 
-`EMBEDDING_MODEL`, `EMBEDDING_DEVICE`, `VECTOR_INDEX_DIR`, `RETRIEVAL_TOP_K`, and the `OLLAMA_*` settings control model and retrieval behavior. Tests use deterministic embeddings and mocked Ollama HTTP responses, so test runs need neither model downloads nor a running Ollama service.
+Sentence Transformers creates normalized vectors for the contract chunks. FAISS ranks them by cosine similarity. A JSON manifest records the embedding model, chunk IDs, and a digest of the indexed content. If the manifest or index is missing, invalid, or stale, the service rebuilds it.
 
-The synthetic labeled dataset and evaluator are documented in [evaluation.md](evaluation.md). Its small reference metrics validate the evaluation code only; they do not represent live model quality.
+For a question, retrieval selects a bounded set of excerpts from that contract only. Ollama answers from those excerpts and cites chunk IDs. The service rejects citations that were not part of the retrieved evidence. A supported answer includes excerpts, pages, and confidence. If the contract does not answer the question, the API returns `answered: false`, a null answer, no sources, and zero confidence.
+
+## Settings and testing
+
+The main controls are `EMBEDDING_MODEL`, `EMBEDDING_DEVICE`, `VECTOR_INDEX_DIR`, `RETRIEVAL_TOP_K`, and the `OLLAMA_*` variables. Unit tests use local deterministic vectors and mocked Ollama calls, so they do not download models.
+
+See [evaluation.md](evaluation.md) for the labeled fixtures and scoring rules. Those fixtures are useful for regression testing, but they are too small to establish legal-review quality.

@@ -1,25 +1,30 @@
 # Evaluation
 
-The repository includes a hand-labeled dataset of three fictional contracts in `data/evaluation/contracts.json`. The MSA, NDA, and SaaS examples contain 11 page-level chunks. `expected_outputs.json` supplies gold metadata, four obligations, three risks, and six questions. No customer contracts or credentials are included.
+The repository contains two synthetic evaluation sets. They are intended for regression checks and integration testing. They are not a substitute for a reviewed set of real contracts.
 
-Run the reference prediction snapshot with `make evaluate`, or evaluate another prediction file:
+## Reference fixture
 
-```bash
-python scripts/evaluate_extraction.py --predictions path/to/predictions.json --output path/to/results.json
+`data/evaluation/contracts.json` contains fictional MSA, NDA, and SaaS contracts split into 11 page-level chunks. `expected_outputs.json` labels eight metadata fields per contract, four obligations, three risks, and six questions. No customer data or credentials are included.
+
+Run the saved reference predictions with `make evaluate`, or score another prediction file:
+
+```sh
+python scripts/evaluate_extraction.py \
+  --predictions path/to/predictions.json \
+  --output path/to/results.json
 ```
 
-The prediction file must contain every dataset `contract_id` and follow the collections shown in `reference_predictions.json`.
+The prediction file must include every `contract_id` in the dataset and follow the structure in `reference_predictions.json`.
 
-## Metrics
+## Scoring rules
 
-- **Metadata accuracy** is case-insensitive exact match across eight fields per contract. Whitespace is normalized, and party objects are order-independent.
-- **Obligation precision and recall** use exact matches on title, responsible party, counterparty, due date, recurring frequency, and page number.
-- **Risk classification accuracy** matches risks by category and page, then compares severity. Missing gold risks count as errors. Detection precision and recall are also reported.
-- **Q&A answer accuracy** uses normalized exact match. Citation precision and recall compare cited chunk IDs with labeled support. A response is grounded when it declines an unanswerable question without citations, or answers with at least one citation and all citations are labeled support.
+- Metadata uses case-insensitive exact matching across eight fields. Whitespace is normalized and party order does not matter.
+- Obligations must match title, responsible party, counterparty, due date, recurring frequency, and page number.
+- Risks match on category and page before severity is compared.
+- Answers use normalized exact matching. Citation scores compare cited chunk IDs with the labeled supporting chunks.
+- An answer counts as grounded when it either declines an unsupported question without citations or answers with citations drawn only from the labeled evidence.
 
-## Reference results
-
-`reference_predictions.json` is intentionally imperfect so error paths remain covered. Running it produces `results.json`:
+The saved reference snapshot is deliberately imperfect:
 
 | Measure | Result |
 | --- | ---: |
@@ -32,22 +37,30 @@ The prediction file must contain every dataset `contract_id` and follow the coll
 | Citation precision | 66.67% |
 | Citation recall | 100.00% |
 
-These figures validate the evaluator against a deterministic fixture. They are not measurements of a live Ollama model or evidence of production quality. The dataset is too small and synthetic for model selection; expand it with independently reviewed, representative contracts before drawing product conclusions.
+These numbers prove that the evaluator behaves as expected. They do not measure a live model.
 
-## Live API evaluation
+## Live API run
 
-`expanded_contracts.json` and `expanded_expected_outputs.json` include the original three contracts plus support, payment-amendment, and data-processing examples: six contracts, 20 page chunks, and 12 questions. They add response-versus-resolution distinctions, superseded deadlines, missing metadata, absent insurance/availability terms, and breach notification. These additional labels are provisional synthetic annotations, not independently reviewed legal ground truth. Cases with an empty risk list assert no labeled risk under this small fixture rubric; they do not establish absence of real-world risk.
+The expanded fixture adds support, payment-amendment, and data-processing contracts. In total it contains six contracts, 20 page chunks, and 12 questions. The cases cover superseded deadlines, response and resolution periods, missing metadata, absent insurance or availability terms, and breach notification.
 
-Start a configured stack, pull its Ollama model, set `CONTRACT_REVIEW_ACCESS_KEY` to a reviewer key for a dedicated evaluation tenant, and run:
+Start the stack, pull the configured Ollama model, set `CONTRACT_REVIEW_ACCESS_KEY` to a reviewer key for a dedicated evaluation tenant, and run:
 
 ```sh
 python scripts/evaluate_live.py --output-dir data/evaluation/live_runs/local
 ```
 
-The runner constructs real PDFs from fixture page text and sends them through the public API. It uses actual analysis results, verifies completed-result reuse and summary persistence, executes semantic search and grounded Q&A, and translates API chunk UUID citations back to fixture chunk IDs by source page. It saves `predictions.json` and `results.json`, with configured model names, timestamp, and dataset SHA-256. Service or schema failures exit unsuccessfully; saved reference predictions are never substituted. Uploaded evaluation contracts remain in the tenant. A `partial.json` checkpoint is saved after each fully completed fixture. If a run fails, repair the cause and rerun with the same output directory and `--resume`; the runner verifies the model, identity, dataset hashes, and stored contract status before skipping completed fixtures. Final results are written only after every fixture completes.
+The script builds PDFs from the fixtures and sends them through the public API. It exercises upload, analysis, saved-result reuse, summary, search, and questions. The output directory receives `predictions.json` and `results.json`, including model names, a timestamp, and the dataset hash.
 
-Use `--dataset`, `--expected`, `--base-url`, and `--timeout` for another dataset or stack. Each fixture page must have a unique positive page number, and each page's text must fit on one generated PDF page. The gold file supplies question text but never enters extraction prompts; only the contract text and individual questions are sent to the model.
+After each completed contract, the runner updates `partial.json`. If a run stops, fix the problem and resume it with:
 
-The manual **Live stack verification** GitHub Actions workflow builds and runs the production Compose stack with real PostgreSQL, Ollama, and downloaded embeddings. It also verifies that recovery cannot bypass an active PostgreSQL row lock and succeeds after that transaction releases its lock. Its default small model keeps integration runs practical, but schema/evidence failures remain real failures. Model metrics are reported without an invented quality pass threshold. Run it with a deployment-sized model and independently reviewed contracts before a production quality decision.
+```sh
+python scripts/evaluate_live.py \
+  --output-dir data/evaluation/live_runs/local \
+  --resume
+```
 
-Exact-match answer and obligation metrics can penalize equivalent wording. Grounding metrics check labeled citation support rather than full semantic entailment. Broader representative data, human adjudication, and an agreed acceptance threshold are still needed for product-quality claims.
+Resume checks the model, user identity, dataset hashes, and stored contract state before skipping finished cases. Uploaded evaluation contracts remain in the evaluation tenant.
+
+The manual **Live stack verification** workflow performs the same exercise with Docker, PostgreSQL, Ollama, and real embeddings. It also checks PostgreSQL row-lock recovery. A green workflow means the stack works together; it does not mean that the selected model is accurate enough for legal work.
+
+Exact matching can score reasonable paraphrases as wrong, while citation matching does not prove full semantic correctness. Production acceptance needs a larger, representative dataset, human adjudication, and agreed thresholds.

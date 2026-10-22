@@ -1,27 +1,50 @@
-# Production deployment and acceptance
+# Production checklist
 
-The Compose file is a single-host deployment baseline. A production release requires the checks below on the target host before accepting customer contracts. `/health/ready` confirms database connectivity, installed Ollama model, and configured access accounts; it does not establish model quality, backup integrity, or available capacity.
+`docker-compose.prod.yml` is designed for one Docker host and a modest workload. Passing `/health/ready` means the API can reach PostgreSQL, find the configured Ollama model, and load access accounts. It says nothing about model accuracy, backups, or available capacity.
 
 ## Before launch
 
-1. Set `POSTGRES_PASSWORD` to a unique secret and provision `AUTH_ACCOUNTS` with unique keys for each user and tenant. Keep `.env` and backups outside the repository. Use `APP_ENV=production` (set by the production Compose file).
-2. Keep the API bound to loopback and terminate HTTPS at a reverse proxy. If remote browser origins are needed, list explicit HTTPS origins in `CORS_ORIGINS`. Apply request size and rate limits at the proxy. Restrict host and volume access to administrators and back up secrets separately from data.
-3. Pin the Ollama image and selected model for each release. The chosen model must be pulled before starting the API with `--wait`. Reserve enough memory and disk for the model, embeddings, PostgreSQL, and indexes. Run `docker compose -f docker-compose.prod.yml config --quiet` before deployment.
-   Set `MAX_PDF_PAGES`, `MAX_CONTRACT_TEXT_CHARS`, and `OLLAMA_NUM_CTX` to fit the selected model context and available memory; the defaults are 200 pages, 16,000 cleaned characters, and an 8,192-token model context. Text-heavy contracts above either upload limit receive a clear rejection instead of exhausting a model request. Character count is only an approximation of model tokens, so test the largest supported contract and increase the context or lower the text limit if the model truncates it.
-4. Apply migrations and confirm `GET /health/ready` returns 200. Run the live evaluation against an isolated tenant and inspect `predictions.json` and `results.json`. Define acceptance thresholds using independently reviewed, representative contracts; the bundled synthetic fixtures cannot establish legal review quality.
-5. Test real PostgreSQL recovery and concurrent requests on the target stack. The manual **Live stack verification** workflow provides an integration check, but its results are specific to its chosen model and runner.
+1. Choose a strong `POSTGRES_PASSWORD`. Create a separate access key for every user and tenant, and keep `.env` outside source control.
+2. Leave the API bound to loopback and place an HTTPS reverse proxy in front of it. Configure rate and request-size limits there. Add only the required HTTPS origins to `CORS_ORIGINS`.
+3. Pin the Ollama image and model used for the release. Pull the model before starting the API. Confirm that the host has enough memory and disk for Ollama, embeddings, PostgreSQL, and FAISS indexes.
+4. Check the Compose file and apply migrations:
 
-## Operations
+   ```sh
+   docker compose -f docker-compose.prod.yml config --quiet
+   docker compose -f docker-compose.prod.yml up -d --wait
+   ```
 
-- Monitor `/health/ready`, API 5xx responses, request latency, PostgreSQL capacity, Ollama errors, disk free space, and the count of contracts in `failed` or stale `processing` state. Investigate failed analyses before retrying; reviewers can recover a stale processing attempt through the API.
-- Keep one API worker on this single-host Compose baseline. `MAX_CONCURRENT_MODEL_REQUESTS` defaults to 1 per process; a second model request receives HTTP 503 and `Retry-After: 30`. Increase it only after measuring model memory and latency under concurrent load.
-- Back up PostgreSQL and the named `vector_index_data` and `ollama_data` volumes. FAISS indexes can be rebuilt from stored chunks, but PostgreSQL contains the contract text and review results and must have tested point-in-time or scheduled restores. Store backups encrypted with restricted access and a documented retention period.
-- Rehearse a restore into an isolated environment, apply migrations, pull the pinned model, and run an upload, analysis, search, and question smoke test. Verify tenant separation and recovery before routing traffic to the restored stack.
-  `python scripts/verify_postgres_backup.py` checks the Compose database with `pg_dump` and `pg_restore` in a fresh temporary database, verifies its migration version and application tables, and removes the temporary database afterward. It does not replace durable encrypted backups or an off-host recovery rehearsal.
-- On a failed release, stop new analysis requests, preserve database and volume snapshots, revert the application image, and restore the database only if the migration cannot be rolled back safely. Do not restore an older database over newer customer work without a recovery plan.
+5. Confirm that `/health/ready` returns `200`. Run the live evaluation in an isolated tenant and inspect both the predictions and scores.
+6. Test concurrent requests, abandoned-analysis recovery, and a complete backup restore on the target host.
 
-## Known launch limits
+The default limits are 200 PDF pages, 16,000 cleaned characters, and an Ollama context size of 8,192 tokens. Character count is only a rough proxy for tokens. Test the largest contract you plan to accept and adjust `MAX_PDF_PAGES`, `MAX_CONTRACT_TEXT_CHARS`, and `OLLAMA_NUM_CTX` together.
 
-The API accepts text-based PDFs; scanned contracts need an OCR stage before upload. Access keys are manually provisioned and have no SSO or self-service rotation. The API and Ollama share a synchronous request path, so capacity and timeout behavior must be measured under expected contract sizes and concurrency. Local Docker and synthetic-contract checks are useful smoke tests, but representative contracts reviewed by qualified staff, an HTTPS reverse proxy, and an off-host backup restore are still required before accepting customer data.
+## Day-to-day operations
 
-On 2026-10-22 the local six-contract synthetic evaluation with `gemma3:4b` completed. Exact-match scoring reported 32/48 metadata fields, 0/7 expected obligations, 0/3 expected risks, and 3/12 question answers. The obligation and risk scorer requires exact titles, categories, parties, frequency, and page numbers, so a zero score does not prove every extracted item is absent; the predictions include some relevant evidence-backed items. It does demonstrate that the current model/output is not calibrated to the acceptance labels, and the predictions also include additional risk claims. Review the saved predictions and labels, define useful legal-review acceptance criteria with qualified reviewers, and improve or replace the model before accepting customer contracts. Do not treat a successful infrastructure smoke test as approval for autonomous legal decisions.
+Watch `/health/ready`, response latency, API errors, Ollama failures, PostgreSQL capacity, free disk space, and contracts left in `failed` or stale `processing` states. Investigate a failed analysis before retrying it.
+
+This deployment uses one API worker. `MAX_CONCURRENT_MODEL_REQUESTS` defaults to 1 per process. While Ollama is busy, another model request receives `503` with `Retry-After: 30`. Raise the limit only after measuring memory use and response time under load.
+
+Back up PostgreSQL and the `vector_index_data` and `ollama_data` volumes. PostgreSQL is the critical copy because it contains the contract text and review results. FAISS indexes can be rebuilt. Encrypt backups, restrict access, keep a retention policy, and store a copy away from the Docker host.
+
+Use the included restore check as a local smoke test:
+
+```sh
+python scripts/verify_postgres_backup.py
+```
+
+The script restores a dump into a temporary database and checks migrations and table counts. It does not replace an off-host recovery rehearsal.
+
+If a release fails, stop new analyses, preserve the current database and volume snapshots, and roll back the application image. Restore an older database only when the migration cannot be recovered safely and there is a clear plan for data created after that backup.
+
+## Current release limits
+
+- Only text-based PDFs are supported. Scanned documents need OCR.
+- Access keys are provisioned manually. There is no SSO, self-service account management, or automatic key rotation.
+- Remote deployment still needs an HTTPS reverse proxy and operational monitoring.
+- Backup and restore must be tested away from the application host.
+- Model quality has not reached a production acceptance threshold.
+
+The local live evaluation completed on October 22, 2026 with `gemma3:4b`. Exact-match scoring found 32 of 48 metadata fields, 3 of 12 answers, 0 of 7 obligations, and 0 of 3 risks. The strict obligation and risk keys penalize wording and classification differences, so the zero scores do not mean that every prediction was empty. The saved output contains some relevant, evidence-backed findings. It also contains extra risk claims and does not match the agreed labels closely enough for production use.
+
+Before accepting customer contracts, review the predictions with qualified legal or procurement staff, build a representative labeled dataset, agree on acceptance thresholds, and improve or replace the model. The application should remain an assisted-review tool; a successful infrastructure check is not approval for autonomous legal decisions.
